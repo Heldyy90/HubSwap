@@ -58,6 +58,11 @@
 ./gradlew build
 
 ## 📸 Скриншоты
+
+**Сам мод**:
+
+<img width="634" height="307" alt="image" src="https://github.com/user-attachments/assets/afadda42-4651-4323-9b96-df3e0eeb8e7e" />
+
 **Меню настроек: задержки и команды**
 
 <img width="1280" height="1024" alt="image" src="https://github.com/user-attachments/assets/2e65dce9-043a-4bed-98ec-79a73afc0d08" />
