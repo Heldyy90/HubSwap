@@ -1,0 +1,22 @@
+{
+  "mappings": {
+    "ru/heldyy/hubswap/mixin/ChatHudMixin": {
+      "addMessage(Lnet/minecraft/text/Text;)V": "Lnet/minecraft/class_338;method_1812(Lnet/minecraft/class_2561;)V",
+      "addMessage(Lnet/minecraft/text/Text;Lnet/minecraft/network/message/MessageSignatureData;Lnet/minecraft/client/gui/hud/MessageIndicator;)V": "Lnet/minecraft/class_338;method_44811(Lnet/minecraft/class_2561;Lnet/minecraft/class_7469;Lnet/minecraft/class_7591;)V"
+    },
+    "ru/heldyy/hubswap/mixin/ChatScreenMixin": {
+      "sendMessage(Ljava/lang/String;Z)Z": "Lnet/minecraft/class_408;method_44056(Ljava/lang/String;Z)Z"
+    }
+  },
+  "data": {
+    "named:intermediary": {
+      "ru/heldyy/hubswap/mixin/ChatHudMixin": {
+        "addMessage(Lnet/minecraft/text/Text;)V": "Lnet/minecraft/class_338;method_1812(Lnet/minecraft/class_2561;)V",
+        "addMessage(Lnet/minecraft/text/Text;Lnet/minecraft/network/message/MessageSignatureData;Lnet/minecraft/client/gui/hud/MessageIndicator;)V": "Lnet/minecraft/class_338;method_44811(Lnet/minecraft/class_2561;Lnet/minecraft/class_7469;Lnet/minecraft/class_7591;)V"
+      },
+      "ru/heldyy/hubswap/mixin/ChatScreenMixin": {
+        "sendMessage(Ljava/lang/String;Z)Z": "Lnet/minecraft/class_408;method_44056(Ljava/lang/String;Z)Z"
+      }
+    }
+  }
+}
