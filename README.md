@@ -61,9 +61,12 @@
 
 ## 📸 Скриншоты
 **Меню настроек: задержки и команды**
+
 <img width="1280" height="1024" alt="image" src="https://github.com/user-attachments/assets/2e65dce9-043a-4bed-98ec-79a73afc0d08" />
 
 **Кликабельные сервера в чате**
-<img width="315" height="199" alt="image" src="https://github.com/user-attachments/assets/24514966-1142-4ad4-8ded-4b2c02b7cf03" />
+
+<img width="314" height="198" alt="image" src="https://github.com/user-attachments/assets/7455eeab-0ed2-4608-9990-a7cd02a5ed43" />
+
 <img width="460" height="85" alt="image" src="https://github.com/user-attachments/assets/e8d3b98d-5545-46b8-afad-1ce3ce9df913" />
 
