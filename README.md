@@ -67,6 +67,7 @@
 **Кликабельные сервера в чате**
 
 <img width="314" height="198" alt="image" src="https://github.com/user-attachments/assets/7455eeab-0ed2-4608-9990-a7cd02a5ed43" />
-
+<img width="312" height="199" alt="image" src="https://github.com/user-attachments/assets/e67bb182-a993-40ba-975a-fd08137d5eaf" />
 <img width="460" height="85" alt="image" src="https://github.com/user-attachments/assets/e8d3b98d-5545-46b8-afad-1ce3ce9df913" />
+
 
