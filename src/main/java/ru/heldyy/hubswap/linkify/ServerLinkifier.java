@@ -19,6 +19,7 @@ import java.util.regex.Pattern;
  * Поддерживает:
  *  Classic (cn): Anarchy, Anarchy-1, Anarchy-8, anarchy8
  *  Lite   (ln): Lite-Anarchy, Lite-Anarchy-40, lanarchy, lanarchy18
+ *  Lite 1.20 (ln120): l2anarchy, l2anarchy2, l2anarchy3 ...
  */
 public class ServerLinkifier {
 
@@ -28,8 +29,11 @@ public class ServerLinkifier {
      */
     private static final Pattern PATTERN = Pattern.compile(
             "(?i)" +
+                    // Lite 1.20 first (with number, then without)
+                    "(?<l2N>\\bl2anarchy(?<l2Num>\\d+)\\b)" +
+                    "|(?<l2One>\\bl2anarchy\\b)" +
                     // Lite first (with number, then without)
-                    "(?<liteN>\\bLite-Anarchy-(?<liteNum>\\d+)\\b)" +
+                    "|(?<liteN>\\bLite-Anarchy-(?<liteNum>\\d+)\\b)" +
                     "|(?<lite1>\\bLite-Anarchy\\b)" +
                     // lanarchy first (with number, then without)
                     "|(?<lanN>\\blanarchy(?<lanNum>\\d+)\\b)" +
@@ -86,16 +90,22 @@ public class ServerLinkifier {
 
             String matchedText = segment.substring(m.start(), m.end());
 
-            boolean lite = m.group("lite1") != null || m.group("liteN") != null
+            boolean lite120 = m.group("l2One") != null || m.group("l2N") != null;
+            boolean lite = lite120
+                    || m.group("lite1") != null || m.group("liteN") != null
                     || m.group("lan1") != null || m.group("lanN") != null;
 
             int serverNum = 1;
-            if (m.group("liteNum") != null) serverNum = parseIntSafe(m.group("liteNum"), 1);
+            if (m.group("l2Num") != null) serverNum = parseIntSafe(m.group("l2Num"), 1);
+            else if (m.group("liteNum") != null) serverNum = parseIntSafe(m.group("liteNum"), 1);
             else if (m.group("lanNum") != null) serverNum = parseIntSafe(m.group("lanNum"), 1);
             else if (m.group("clDashNum") != null) serverNum = parseIntSafe(m.group("clDashNum"), 1);
             else if (m.group("clNum") != null) serverNum = parseIntSafe(m.group("clNum"), 1);
 
-            String baseCmd = lite ? cfg.getLightCommand() : cfg.getClassicCommand();
+            String baseCmd;
+            if (lite120) baseCmd = cfg.getLight120Command();
+            else if (lite) baseCmd = cfg.getLightCommand();
+            else baseCmd = cfg.getClassicCommand();
             String command = "/" + baseCmd + " " + serverNum;
 
             // Получаем цвет ссылок из конфига
