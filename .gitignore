@@ -35,6 +35,7 @@ Package archives
 *.zip
 *.tar.gz
 *.rar
+HubSwap.zip
 
 ============================================
 JVM crash logs
