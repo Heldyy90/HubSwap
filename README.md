@@ -1,6 +1,6 @@
 # HubSwap (Fabric 1.20.1)
 
-Мод для **HolyWorld**, который ускоряет и упрощает переход между серверами **Anarchy / Lite-Anarchy**:
+Мод для модераторов на **HolyWorld**, который ускоряет и упрощает переход между серверами **Anarchy / Lite-Anarchy**:
 - быстрые команды вида /cn 3, /ln 27, /ln120 2
 - кликабельные названия серверов в чате (например lanarchy30, Lite-Anarchy-40, Anarchy-8)
 - меню настроек (клавиша **F7** по умолчанию)
@@ -58,3 +58,12 @@
 Команды:
 `bash
 ./gradlew build
+
+## 📸 Скриншоты
+**Меню настроек: задержки и команды**
+<img width="1280" height="1024" alt="image" src="https://github.com/user-attachments/assets/2e65dce9-043a-4bed-98ec-79a73afc0d08" />
+
+**Кликабельные сервера в чате**
+<img width="315" height="199" alt="image" src="https://github.com/user-attachments/assets/24514966-1142-4ad4-8ded-4b2c02b7cf03" />
+<img width="460" height="85" alt="image" src="https://github.com/user-attachments/assets/e8d3b98d-5545-46b8-afad-1ce3ce9df913" />
+
