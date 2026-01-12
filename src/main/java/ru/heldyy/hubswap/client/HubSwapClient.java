@@ -26,7 +26,7 @@ public class HubSwapClient implements ClientModInitializer {
 
     private static CommandDispatcher<FabricClientCommandSource> DISPATCHER;
 
-    // Маппинг "английская раскладка -> русская" для одной и той же физической клавиатуры (QWERTY -> ЙЦУКЕН)
+
     private static final Map<Character, Character> EN_TO_RU = new HashMap<>();
     static {
         // Row 1
@@ -49,7 +49,7 @@ public class HubSwapClient implements ClientModInitializer {
     }
 
     private void registerKeybinds() {
-        // GLFW keycode 295 = F8 (как в исходном моде)
+    
         configMenuKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.hubswap.config",
                 295,
@@ -100,7 +100,6 @@ public class HubSwapClient implements ClientModInitializer {
         if (literal == null || literal.isBlank()) return;
         if (DISPATCHER == null) return;
 
-        // Если такая команда уже существует — не трогаем
         if (DISPATCHER.getRoot().getChild(literal) != null) return;
 
         DISPATCHER.register(ClientCommandManager.literal(literal)
@@ -130,7 +129,6 @@ public class HubSwapClient implements ClientModInitializer {
             if (configMenuKey.wasPressed()) {
                 client.setScreen(new ConfigScreen(null));
                 if (client.player != null) {
-                    // Используем цвет темы из конфига
                     Formatting themeColor = HubSwap.getConfig().getColorTheme().getFormatting();
                     client.player.sendMessage(
                             Text.literal("[HubSwap] ").formatted(themeColor)
