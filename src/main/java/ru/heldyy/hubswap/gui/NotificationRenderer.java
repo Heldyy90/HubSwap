@@ -37,7 +37,6 @@ public class NotificationRenderer {
                 return;
             }
 
-            // Вычисляем целевые значения анимации
             float targetAlpha;
             float targetScale;
             if (elapsed < FADE_IN) {
@@ -57,7 +56,6 @@ public class NotificationRenderer {
             float deltaTime = (float) (now - anim.lastUpdate) / 1000.0f;
             anim.lastUpdate = now;
 
-            // Плавная интерполяция
             float smoothing = 8.0f * deltaTime;
             anim.alpha = smoothLerp(anim.alpha, targetAlpha, smoothing);
             anim.offsetY = smoothLerp(anim.offsetY, targetYOffset, smoothing);
@@ -66,18 +64,15 @@ public class NotificationRenderer {
             MinecraftClient client = MinecraftClient.getInstance();
             int screenWidth = context.getScaledWindowWidth();
             int textWidth = client.textRenderer.getWidth(message);
-            
-            // Размеры панели с учётом масштаба
+
             int panelWidth = textWidth + 20;
             int panelHeight = 16;
-            
+
             int x = screenWidth - panelWidth - 10;
             int y = (int) (BASE_Y + anim.offsetY);
 
-            // Сохраняем матрицу для масштабирования
             context.getMatrices().push();
-            
-            // Масштабирование от правого края
+
             float scaleOriginX = screenWidth - 10;
             float scaleOriginY = y + panelHeight / 2.0f;
             context.getMatrices().translate(scaleOriginX, scaleOriginY, 0);
@@ -85,29 +80,21 @@ public class NotificationRenderer {
             context.getMatrices().translate(-scaleOriginX, -scaleOriginY, 0);
 
             int alphaInt = (int) (anim.alpha * 255.0f);
-            
-            // Градиентный фон (тёмный с прозрачностью)
+
             int bgColorTop = (int) (anim.alpha * 180.0f) << 24 | 0x1a1a2e;
             int bgColorBottom = (int) (anim.alpha * 200.0f) << 24 | 0x16213e;
             context.fillGradient(x, y, x + panelWidth, y + panelHeight, bgColorTop, bgColorBottom);
-            
-            // ✅ Обводка вокруг сообщения (cyan рамка)
+
             int borderColor = alphaInt << 24 | 0x00d9ff;
-            // Верхняя линия
             context.fill(x - 1, y - 1, x + panelWidth + 1, y, borderColor);
-            // Нижняя линия
             context.fill(x - 1, y + panelHeight, x + panelWidth + 1, y + panelHeight + 1, borderColor);
-            // Левая линия
             context.fill(x - 1, y - 1, x, y + panelHeight + 1, borderColor);
-            // Правая линия
             context.fill(x + panelWidth, y - 1, x + panelWidth + 1, y + panelHeight + 1, borderColor);
-            
-            // Иконка (стилизованный ▶)
+
             int iconColor = alphaInt << 24 | 0x00ff88;
             context.fill(x + 6, y + 5, x + 8, y + 11, iconColor);
             context.fill(x + 8, y + 6, x + 10, y + 10, iconColor);
-            
-            // Текст с тенью
+
             int textColor = alphaInt << 24 | 0xFFFFFF;
             context.drawText(client.textRenderer, message, x + 14, y + 4, textColor, true);
 
