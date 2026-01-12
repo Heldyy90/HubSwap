@@ -22,16 +22,16 @@ public class ConfigScreen extends Screen {
 
     private boolean notificationsEnabledTmp;
     private ButtonWidget notificationsToggleButton;
-    
+
     private ModConfig.ColorTheme currentTheme;
     private ButtonWidget themeToggleButton;
-    
+
     private Formatting currentLinkColor;
     private ButtonWidget linkColorToggleButton;
-    
+
     private ButtonWidget saveButton;
     private ButtonWidget cancelButton;
-    
+
     private float backgroundAlpha = 0.0f;
     private float contentOffset = 20.0f;
 
@@ -53,41 +53,31 @@ public class ConfigScreen extends Screen {
         int fieldHeight = 20;
         int spacing = 50;
 
-        // ЛЕВАЯ КОЛОНКА - Поля ввода
-        
-        // Задержка /hub
         classicDelayField = new TextFieldWidget(this.textRenderer, leftColX, startY, fieldWidth, fieldHeight, Text.literal("Задержка /hub"));
         classicDelayField.setText(String.valueOf(config.getClassicDelay()));
         classicDelayField.setMaxLength(4);
         addDrawableChild(classicDelayField);
 
-        // Задержка кликов
         clickDelayField = new TextFieldWidget(this.textRenderer, leftColX, startY + spacing, fieldWidth, fieldHeight, Text.literal("Задержка кликов"));
         clickDelayField.setText(String.valueOf(config.getClickDelay()));
         clickDelayField.setMaxLength(4);
         addDrawableChild(clickDelayField);
 
-        // Команда Classic
         classicCommandField = new TextFieldWidget(this.textRenderer, leftColX, startY + spacing * 2, fieldWidth, fieldHeight, Text.literal("Команда классик"));
         classicCommandField.setText(config.getClassicCommand());
         classicCommandField.setMaxLength(10);
         addDrawableChild(classicCommandField);
 
-        // Команда Lite
         lightCommandField = new TextFieldWidget(this.textRenderer, leftColX, startY + spacing * 3, fieldWidth, fieldHeight, Text.literal("Команда лайт"));
         lightCommandField.setText(config.getLightCommand());
         lightCommandField.setMaxLength(10);
         addDrawableChild(lightCommandField);
 
-        // Команда Lite 1.20
         light120CommandField = new TextFieldWidget(this.textRenderer, leftColX, startY + spacing * 4, fieldWidth, fieldHeight, Text.literal("Команда лайт 1.20"));
         light120CommandField.setText(config.getLight120Command());
         light120CommandField.setMaxLength(10);
         addDrawableChild(light120CommandField);
 
-        // ПРАВАЯ КОЛОНКА - Кнопки настроек
-        
-        // Кнопка уведомлений
         notificationsEnabledTmp = config.isNotificationsEnabled();
         notificationsToggleButton = addDrawableChild(ButtonWidget.builder(
                 getNotificationButtonText(),
@@ -97,7 +87,6 @@ public class ConfigScreen extends Screen {
                 }
         ).dimensions(rightColX, startY, fieldWidth, fieldHeight).build());
 
-        // Кнопка цветовой темы
         themeToggleButton = addDrawableChild(ButtonWidget.builder(
                 getThemeButtonText(),
                 btn -> {
@@ -106,7 +95,6 @@ public class ConfigScreen extends Screen {
                 }
         ).dimensions(rightColX, startY + spacing, fieldWidth, fieldHeight).build());
 
-        // Кнопка цвета ссылок
         linkColorToggleButton = addDrawableChild(ButtonWidget.builder(
                 getLinkColorButtonText(),
                 btn -> {
@@ -115,9 +103,9 @@ public class ConfigScreen extends Screen {
                 }
         ).dimensions(rightColX, startY + spacing * 2, fieldWidth, fieldHeight).build());
 
-        // Кнопки действий внизу по центру
         int buttonY = this.height - 35;
         int buttonWidth = 140;
+
         saveButton = addDrawableChild(ButtonWidget.builder(Text.literal("✓ Сохранить"), btn -> onSave())
                 .dimensions(centerX - buttonWidth - 5, buttonY, buttonWidth, fieldHeight)
                 .build());
@@ -128,11 +116,10 @@ public class ConfigScreen extends Screen {
     }
 
     private Text getNotificationButtonText() {
-        if (notificationsEnabledTmp) {
-            return Text.literal("🔔 Уведомления: ВКЛ").formatted(Formatting.WHITE);
-        } else {
-            return Text.literal("🔕 Уведомления: ВЫКЛ").formatted(Formatting.WHITE);
-        }
+        return (notificationsEnabledTmp
+                ? Text.literal("🔔 Уведомления: ВКЛ")
+                : Text.literal("🔕 Уведомления: ВЫКЛ")
+        ).formatted(Formatting.WHITE);
     }
 
     private Text getThemeButtonText() {
@@ -158,14 +145,14 @@ public class ConfigScreen extends Screen {
 
     private Formatting nextLinkColor(Formatting current) {
         Formatting[] colors = {
-            Formatting.GOLD,
-            Formatting.GREEN,
-            Formatting.YELLOW,
-            Formatting.AQUA,
-            Formatting.LIGHT_PURPLE,
-            Formatting.RED
+                Formatting.GOLD,
+                Formatting.GREEN,
+                Formatting.YELLOW,
+                Formatting.AQUA,
+                Formatting.LIGHT_PURPLE,
+                Formatting.RED
         };
-        
+
         for (int i = 0; i < colors.length; i++) {
             if (colors[i] == current) {
                 return colors[(i + 1) % colors.length];
@@ -218,29 +205,21 @@ public class ConfigScreen extends Screen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        // Анимация появления
         backgroundAlpha = Math.min(1.0f, backgroundAlpha + delta * 2.0f);
         contentOffset = Math.max(0.0f, contentOffset - delta * 60.0f);
 
-        // Градиентный фон
         renderGradientBackground(context);
-
-        // Верхняя панель заголовка
         renderHeaderPanel(context);
 
-        // Применяем анимацию появления
         context.getMatrices().push();
         context.getMatrices().translate(0, contentOffset, 0);
 
-        // Рендерим метки для полей
         renderLabels(context);
 
-        // Рендерим все виджеты
         super.render(context, mouseX, mouseY, delta);
 
         context.getMatrices().pop();
-        
-        // Нижняя линия
+
         renderFooterLine(context);
     }
 
@@ -253,28 +232,14 @@ public class ConfigScreen extends Screen {
     private void renderHeaderPanel(DrawContext context) {
         int panelHeight = 65;
         int alpha = (int) (backgroundAlpha * 180);
-        
-        // Фон панели
+
         context.fillGradient(0, 0, this.width, panelHeight, alpha << 24 | 0x16213e, alpha << 24 | 0x0f1728);
-        
-        // Нижняя граница (с цветом темы)
+
         int themeColor = currentTheme.getRgbColor();
         context.fill(0, panelHeight - 2, this.width, panelHeight, alpha << 24 | themeColor);
-        
-        // Заголовок
+
         Text title = Text.literal("⚙ Настройки HubSwap").formatted(currentTheme.getFormatting(), Formatting.BOLD);
         context.drawCenteredTextWithShadow(this.textRenderer, title, this.width / 2, 20, 0xFFFFFF);
-        
-        // Подзаголовок
-        Text subtitle = Text.literal("Настройте команды и задержки для автоматического переключения серверов")
-                .formatted(Formatting.GRAY);
-        int subtitleWidth = this.textRenderer.getWidth(subtitle);
-        float scale = 0.75f;
-        context.getMatrices().push();
-        context.getMatrices().translate(this.width / 2.0f, 38, 0);
-        context.getMatrices().scale(scale, scale, 1.0f);
-        context.drawText(this.textRenderer, subtitle, -subtitleWidth / 2, 0, 0x999999, true);
-        context.getMatrices().pop();
     }
 
     private void renderLabels(DrawContext context) {
@@ -285,7 +250,6 @@ public class ConfigScreen extends Screen {
         int spacing = 50;
         int themeColor = currentTheme.getRgbColor();
 
-        // Метки для левой колонки
         String[] leftLabels = {
                 "⏱ Задержка /hub (мс)",
                 "⏱ Задержка между кликами (мс)",
@@ -294,57 +258,33 @@ public class ConfigScreen extends Screen {
                 "⌨ Команда для Lite 1.20"
         };
 
-        String[] leftHints = {
-                "Время ожидания после команды /hub (100-5000)",
-                "Время между кликами в меню (50-1000)",
-                "Например: cn, classic, кл",
-                "Например: ln, lite, лайт",
-                "Например: ln120, lite120"
-        };
-
         for (int i = 0; i < leftLabels.length; i++) {
-            int y = startY + spacing * i - 24;
-            renderLabel(context, leftColX, y, 300, leftLabels[i], leftHints[i], themeColor);
+            int y = startY + spacing * i - 20;
+            renderLabel(context, leftColX, y, 300, leftLabels[i], themeColor);
         }
 
-        // Метки для правой колонки
         String[] rightLabels = {
                 "🔔 Настройки уведомлений",
                 "🎨 Цветовая тема интерфейса",
                 "🔗 Цвет названий серверов"
         };
 
-        String[] rightHints = {
-                "Показывать уведомления о переходе на сервер",
-                "Изменяет цвет элементов интерфейса мода",
-                "Цвет кликабельных названий (Anarchy, Lite-Anarchy)"
-        };
-
         for (int i = 0; i < rightLabels.length; i++) {
-            int y = startY + spacing * i - 24;
-            renderLabel(context, rightColX, y, 300, rightLabels[i], rightHints[i], themeColor);
+            int y = startY + spacing * i - 20;
+            renderLabel(context, rightColX, y, 300, rightLabels[i], themeColor);
         }
     }
 
-    private void renderLabel(DrawContext context, int x, int y, int width, String label, String hint, int themeColor) {
+    private void renderLabel(DrawContext context, int x, int y, int width, String label, int themeColor) {
         int alpha = (int) (backgroundAlpha * 100);
-        
-        // Фон метки
-        context.fill(x - 2, y, x + width + 2, y + 18, alpha << 24 | 0x1a1f3a);
-        
-        // Левая акцентная линия
-        context.fill(x - 2, y, x, y + 18, (int) (backgroundAlpha * 255) << 24 | themeColor);
-        
-        // Текст метки
-        context.drawText(this.textRenderer, Text.literal(label).formatted(currentTheme.getFormatting()), 
-                x + 3, y + 2, themeColor, false);
-        
-        // Подсказка
-        float scale = 0.7f;
+
+        context.fill(x - 2, y, x + width + 2, y + 14, alpha << 24 | 0x1a1f3a);
+        context.fill(x - 2, y, x, y + 14, (int) (backgroundAlpha * 255) << 24 | themeColor);
+
         context.getMatrices().push();
-        context.getMatrices().translate(x + 3, y + 11, 0);
-        context.getMatrices().scale(scale, scale, 1.0f);
-        context.drawText(this.textRenderer, hint, 0, 0, 0xCCCCCC, false);
+        context.getMatrices().translate(x + 3, y + 3, 0);
+        context.getMatrices().scale(0.85f, 0.85f, 1.0f);
+        context.drawText(this.textRenderer, Text.literal(label).formatted(currentTheme.getFormatting()), 0, 0, themeColor, false);
         context.getMatrices().pop();
     }
 
@@ -352,8 +292,6 @@ public class ConfigScreen extends Screen {
         int footerY = this.height - 50;
         int alpha = (int) (backgroundAlpha * 200);
         int themeColor = currentTheme.getRgbColor();
-        
-        // Линия сверху кнопок
         context.fill(0, footerY, this.width, footerY + 2, alpha << 24 | themeColor);
     }
 
@@ -363,4 +301,4 @@ public class ConfigScreen extends Screen {
             client.setScreen(parent);
         }
     }
-}
+            }
