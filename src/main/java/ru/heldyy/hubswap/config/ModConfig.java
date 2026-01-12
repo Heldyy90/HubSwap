@@ -11,7 +11,6 @@ public class ModConfig {
     @Expose
     private int clickDelay = 200;
 
-    // Commands
     @Expose
     private String classicCommand = "cn";
     @Expose
@@ -22,12 +21,11 @@ public class ModConfig {
     @Expose
     private boolean notificationsEnabled = true;
 
-    // Цветовые настройки
     @Expose
-    private ColorTheme colorTheme = ColorTheme.AQUA; // По умолчанию синий (AQUA)
+    private ColorTheme colorTheme = ColorTheme.AQUA; 
     
     @Expose
-    private Formatting linkColor = Formatting.GOLD; // Цвет кликабельных ссылок серверов
+    private Formatting linkColor = Formatting.GOLD;
 
     public int getClassicDelay() {
         return classicDelay;
@@ -106,8 +104,7 @@ public class ModConfig {
         }
         return cleaned.isEmpty() ? defaultCommand : cleaned;
     }
-
-    // Enum для цветовых тем
+    
     public enum ColorTheme {
         AQUA("Синяя", Formatting.AQUA, 0x00d9ff),
         RED("Красная", Formatting.RED, 0xff4444),
