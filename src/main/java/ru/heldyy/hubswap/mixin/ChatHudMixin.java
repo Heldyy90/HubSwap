@@ -6,6 +6,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import ru.heldyy.hubswap.HubSwap;
+import ru.heldyy.hubswap.gui.TransitionDetector;
 import ru.heldyy.hubswap.linkify.ServerLinkifier;
 
 @Mixin(ChatHud.class)
@@ -17,7 +18,10 @@ public class ChatHudMixin {
             argsOnly = true,
             require = 0
     )
-    private Text hubswap$linkify$1(Text message) {
+    private Text hubswap$processMessage1(Text message) {
+        if (message != null) {
+            TransitionDetector.onChatMessage(message.getString());
+        }
         return ServerLinkifier.linkify(message, HubSwap.getConfig());
     }
 
@@ -27,7 +31,10 @@ public class ChatHudMixin {
             argsOnly = true,
             require = 0
     )
-    private Text hubswap$linkify$2(Text message) {
+    private Text hubswap$processMessage2(Text message) {
+        if (message != null) {
+            TransitionDetector.onChatMessage(message.getString());
+        }
         return ServerLinkifier.linkify(message, HubSwap.getConfig());
     }
 }

@@ -1,90 +1,109 @@
 package ru.heldyy.hubswap.executor;
 
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.text.Text;
 import ru.heldyy.hubswap.HubSwap;
 import ru.heldyy.hubswap.config.ModConfig;
-import ru.heldyy.hubswap.gui.NotificationRenderer;
+import ru.heldyy.hubswap.gui.AutoTuneManager;
+import ru.heldyy.hubswap.gui.TransitionDetector;
+import ru.heldyy.hubswap.gui.TransitionMode;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class AnarchyExecutor {
     private static final MinecraftClient client = MinecraftClient.getInstance();
-    private static final ModConfig config = HubSwap.getConfig();
     private static final ExecutorService executor = Executors.newSingleThreadExecutor();
 
-
     public static void executeSequence(String mode, int anarchyNumber) {
+        ModConfig config = HubSwap.getConfig();
+        AutoTuneManager.Delays delays = AutoTuneManager.getLiveDelays(config);
+
         if (client.player == null || client.interactionManager == null) {
             sendErrorMessage("Игрок или взаимодействие недоступны");
             return;
         }
 
+        HubSwap.getStats().recordSwitch(mode, anarchyNumber);
+        HubSwap.saveStats();
+
         executor.execute(() -> {
             try {
-                sendCommand("hub");
-                sleep(config.getClassicDelay());
-                sendCommand("menu");
-                sleep(config.getClickDelay());
-
-                if ("классик".equals(mode)) {
-                    if (anarchyNumber < 1 || anarchyNumber > 8) {
+                if ("classic".equals(mode)) {
+                    if (anarchyNumber < 1 || anarchyNumber > 5) {
                         sendErrorMessage("Недопустимый номер анархии: " + anarchyNumber);
                         return;
                     }
-                    clickSlot(15); 
-                    sleep(config.getClickDelay());
-                    clickSlot(getClassicTargetSlot(anarchyNumber));
 
-                    sleep(2000L);
-                    NotificationRenderer.showNotification("Вы перемещены на " + anarchyNumber + " классик анархию");
+                    TransitionDetector.startAttempt(TransitionMode.CLASSIC, anarchyNumber, delays.hubDelay(), delays.clickDelay(), delays.confirmDelay());
+
+                    sendCommand("hub");
+                    sleep(delays.hubDelay());
+                    sendCommand("menu");
+                    sleep(delays.clickDelay());
+
+                    clickSlot(15);
+                    sleep(delays.clickDelay() + 60L);
+                    clickSlot(getClassicTargetSlot(anarchyNumber));
                     return;
                 }
 
-                if ("лайт".equals(mode)) {
+                if ("light".equals(mode)) {
                     if (anarchyNumber < 1 || anarchyNumber > 69) {
                         sendErrorMessage("Недопустимый номер анархии: " + anarchyNumber);
                         return;
                     }
-                    clickSlot(12); 
-                    sleep(config.getClickDelay());
+
+                    TransitionDetector.startAttempt(TransitionMode.LIGHT, anarchyNumber, delays.hubDelay(), delays.clickDelay(), delays.confirmDelay());
+
+                    sendCommand("hub");
+                    sleep(delays.hubDelay());
+                    sendCommand("menu");
+                    sleep(delays.clickDelay());
+
+                    clickSlot(12);
+                    sleep(delays.clickDelay() + 60L);
+
                     int[] slots = getLightTargetSlots(anarchyNumber);
                     clickSlot(slots[0]);
-                    sleep(config.getClickDelay());
+                    sleep(delays.clickDelay() + 60L);
                     clickSlot(slots[1]);
-
-                    sleep(2000L);
-                    NotificationRenderer.showNotification("Вы перемещены на " + anarchyNumber + " лайт анархию");
                     return;
                 }
 
-                if ("лайт120".equals(mode)) {
+                if ("light120".equals(mode)) {
                     if (anarchyNumber < 1 || anarchyNumber > 3) {
                         sendErrorMessage("Недопустимый номер сервера: " + anarchyNumber);
                         return;
                     }
-                    clickSlot(10); 
-                    sleep(config.getClickDelay());
-                    clickSlot(getLite120TargetSlot(anarchyNumber));
 
-                    sleep(2000L);
-                    NotificationRenderer.showNotification("Вы перемещены на Лайт 1.20 сервер №" + anarchyNumber);
+                    TransitionDetector.startAttempt(TransitionMode.LIGHT120, anarchyNumber, delays.hubDelay(), delays.clickDelay(), delays.confirmDelay());
+
+                    sendCommand("hub");
+                    sleep(delays.hubDelay());
+                    sendCommand("menu");
+                    sleep(delays.clickDelay());
+
+                    clickSlot(10);
+                    sleep(delays.clickDelay() + 60L);
+                    clickSlot(getLite120TargetSlot(anarchyNumber));
+                    return;
                 }
 
+                sendErrorMessage("Неизвестный режим: " + mode);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 sendErrorMessage("Ошибка выполнения последовательности");
+            } catch (Exception e) {
+                sendErrorMessage("Сбой автоперехода: " + e.getClass().getSimpleName());
             }
         });
     }
 
     private static int getClassicTargetSlot(int number) {
-        int[] slots = new int[]{20, 21, 22, 23, 24, 30, 31, 32}; 
+        int[] slots = new int[]{20, 21, 22, 23, 24};
         if (number < 1 || number > slots.length) {
-            sendErrorMessage("Недопустимый номер анархии: " + number);
             return slots[0];
         }
         return slots[number - 1];
@@ -113,9 +132,10 @@ public class AnarchyExecutor {
     }
 
     private static int getLite120TargetSlot(int number) {
-       
         int[] slots = new int[]{0, 11, 12, 13};
-        if (number < 1 || number >= slots.length) return slots[1];
+        if (number < 1 || number >= slots.length) {
+            return slots[1];
+        }
         return slots[number];
     }
 
@@ -126,10 +146,13 @@ public class AnarchyExecutor {
             }
 
             String cmd = command == null ? "" : command.trim();
-            if (cmd.startsWith("/")) cmd = cmd.substring(1);
-            if (cmd.isEmpty()) return;
+            if (cmd.startsWith("/")) {
+                cmd = cmd.substring(1);
+            }
+            if (cmd.isEmpty()) {
+                return;
+            }
 
-            
             client.getNetworkHandler().sendChatCommand(cmd);
         });
     }
@@ -137,7 +160,13 @@ public class AnarchyExecutor {
     private static void clickSlot(int slot) {
         client.execute(() -> {
             if (client.interactionManager != null && client.player != null && client.player.currentScreenHandler != null) {
-                client.interactionManager.clickSlot(client.player.currentScreenHandler.syncId, slot, 0, SlotActionType.PICKUP, client.player);
+                client.interactionManager.clickSlot(
+                        client.player.currentScreenHandler.syncId,
+                        slot,
+                        0,
+                        SlotActionType.PICKUP,
+                        client.player
+                );
             } else {
                 sendErrorMessage("Меню не открыто или синхронизация нарушена");
             }

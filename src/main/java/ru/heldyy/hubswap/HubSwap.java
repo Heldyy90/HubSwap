@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import net.fabricmc.loader.api.FabricLoader;
 import ru.heldyy.hubswap.config.ModConfig;
+import ru.heldyy.hubswap.config.StatsData;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -21,10 +22,19 @@ public class HubSwap {
             .getConfigDir()
             .resolve("hubswap.json");
 
+    private static final Path STATS_PATH = FabricLoader.getInstance()
+            .getConfigDir()
+            .resolve("hubswap_stats.json");
+
     private static ModConfig CONFIG = loadConfigInternal();
+    private static StatsData STATS = loadStatsInternal();
 
     public static ModConfig getConfig() {
         return CONFIG;
+    }
+
+    public static StatsData getStats() {
+        return STATS;
     }
 
     public static void saveConfig() {
@@ -32,6 +42,17 @@ public class HubSwap {
             Files.createDirectories(CONFIG_PATH.getParent());
             try (BufferedWriter w = Files.newBufferedWriter(CONFIG_PATH, StandardCharsets.UTF_8)) {
                 GSON.toJson(CONFIG, w);
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    public static void saveStats() {
+        try {
+            STATS.flushCurrentServer();
+            Files.createDirectories(STATS_PATH.getParent());
+            try (BufferedWriter w = Files.newBufferedWriter(STATS_PATH, StandardCharsets.UTF_8)) {
+                GSON.toJson(STATS, w);
             }
         } catch (Exception ignored) {
         }
@@ -50,5 +71,16 @@ public class HubSwap {
             }
         }
         return new ModConfig();
+    }
+
+    private static StatsData loadStatsInternal() {
+        if (Files.exists(STATS_PATH)) {
+            try (BufferedReader r = Files.newBufferedReader(STATS_PATH, StandardCharsets.UTF_8)) {
+                StatsData s = GSON.fromJson(r, StatsData.class);
+                return s != null ? s : new StatsData();
+            } catch (Exception ignored) {
+            }
+        }
+        return new StatsData();
     }
 }

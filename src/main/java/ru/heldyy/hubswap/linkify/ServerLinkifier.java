@@ -1,6 +1,7 @@
 package ru.heldyy.hubswap.linkify;
 
 import net.minecraft.text.ClickEvent;
+import net.minecraft.text.HoverEvent;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
@@ -15,20 +16,17 @@ public class ServerLinkifier {
 
     private static final Pattern PATTERN = Pattern.compile(
             "(?i)" +
-                    "(?<l2N>\\bl2anarchy(?<l2Num>\\d+)\\b)" +
-                    "|(?<l2One>\\bl2anarchy\\b)" +
-                    "|(?<liteN>\\bLite-Anarchy-(?<liteNum>\\d+)\\b)" +
-                    "|(?<lite1>\\bLite-Anarchy\\b)" +
+                    "(?<liteN>\\bLite-Anarchy-(?<liteNum>\\d+)\\b)" +
+                    "|(?<liteShort>\\bLite-(?<liteShortNum>\\d+)\\b)" +
+                    "|(?<lite120>\\b1-20L-(?<lite120Num>[1-3])\\b)" +
                     "|(?<lanN>\\blanarchy(?<lanNum>\\d+)\\b)" +
-                    "|(?<lan1>\\blanarchy\\b)" +
-                    "|(?<clDash>(?<!lite-)\\banarchy-(?<clDashNum>\\d+)\\b)" +
-                    "|(?<clN>(?<!lite-)\\banarchy(?<clNum>\\d+)\\b)" +
-                    "|(?<cl1>(?<!lite-)\\banarchy\\b)"
+                    "|(?<lanBare>\\blanarchy\\b)" +
+                    "|(?<clDash>(?<![a-zA-Z])Anarchy-(?<clDashNum>[1-5])\\b)" +
+                    "|(?<clN>(?<![a-zA-Z])anarchy(?<clNum>[1-5])\\b)"
     );
 
     public static Text linkify(Text original, ModConfig cfg) {
-        if (original == null) return null;
-        if (cfg == null) return original;
+        if (original == null || cfg == null) return original;
 
         String rawAll = original.getString();
         if (rawAll == null || rawAll.isEmpty()) return original;
@@ -66,30 +64,39 @@ public class ServerLinkifier {
 
             String matchedText = segment.substring(m.start(), m.end());
 
-            boolean lite120 = m.group("l2One") != null || m.group("l2N") != null;
+            boolean lite120 = m.group("lite120") != null;
+            boolean lanBare = m.group("lanBare") != null;
             boolean lite = lite120
-                    || m.group("lite1") != null || m.group("liteN") != null
-                    || m.group("lan1") != null || m.group("lanN") != null;
+                    || m.group("liteN") != null
+                    || m.group("liteShort") != null
+                    || m.group("lanN") != null
+                    || lanBare;
 
             int serverNum = 1;
-            if (m.group("l2Num") != null) serverNum = parseIntSafe(m.group("l2Num"), 1);
-            else if (m.group("liteNum") != null) serverNum = parseIntSafe(m.group("liteNum"), 1);
+            if (m.group("liteNum") != null) serverNum = parseIntSafe(m.group("liteNum"), 1);
+            else if (m.group("liteShortNum") != null) serverNum = parseIntSafe(m.group("liteShortNum"), 1);
+            else if (m.group("lite120Num") != null) serverNum = parseIntSafe(m.group("lite120Num"), 1);
             else if (m.group("lanNum") != null) serverNum = parseIntSafe(m.group("lanNum"), 1);
             else if (m.group("clDashNum") != null) serverNum = parseIntSafe(m.group("clDashNum"), 1);
             else if (m.group("clNum") != null) serverNum = parseIntSafe(m.group("clNum"), 1);
 
-            String baseCmd;
-            if (lite120) baseCmd = cfg.getLight120Command();
-            else if (lite) baseCmd = cfg.getLightCommand();
-            else baseCmd = cfg.getClassicCommand();
+            String baseCmd = lite120
+                    ? cfg.getLight120Command()
+                    : (lite ? cfg.getLightCommand() : cfg.getClassicCommand());
             String command = "/" + baseCmd + " " + serverNum;
 
             Formatting linkColor = cfg.getLinkColor();
-
-            Style linkStyle = baseStyle
+            Style linkStyle = Style.EMPTY
+                    .withBold(baseStyle.isBold())
+                    .withItalic(baseStyle.isItalic())
                     .withUnderline(true)
                     .withColor(linkColor)
-                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, command));
+                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, command))
+                    .withHoverEvent(new HoverEvent(
+                            HoverEvent.Action.SHOW_TEXT,
+                            Text.literal("Нажмите: ").formatted(Formatting.GRAY)
+                                    .append(Text.literal(command).formatted(linkColor))
+                    ));
 
             out.append(Text.literal(matchedText).setStyle(linkStyle));
             last = m.end();
