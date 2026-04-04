@@ -19,6 +19,9 @@ public class ServerLinkifier {
                     "(?<liteN>\\bLite-Anarchy-(?<liteNum>\\d+)\\b)" +
                     "|(?<liteShort>\\bLite-(?<liteShortNum>\\d+)\\b)" +
                     "|(?<lite120>\\b1-20L-(?<lite120Num>[1-3])\\b)" +
+                    "|(?<l2a3>\\bl2anarchy3\\b)" +
+                    "|(?<l2a2>\\bl2anarchy2\\b)" +
+                    "|(?<l2a1>\\bl2anarchy\\b)" +
                     "|(?<lanN>\\blanarchy(?<lanNum>\\d+)\\b)" +
                     "|(?<lanBare>\\blanarchy\\b)" +
                     "|(?<clDash>(?<![a-zA-Z])Anarchy-(?<clDashNum>[1-5])\\b)" +
@@ -64,8 +67,13 @@ public class ServerLinkifier {
 
             String matchedText = segment.substring(m.start(), m.end());
 
-            boolean lite120 = m.group("lite120") != null;
+            boolean lite120 = m.group("lite120") != null
+                    || m.group("l2a1") != null
+                    || m.group("l2a2") != null
+                    || m.group("l2a3") != null;
+
             boolean lanBare = m.group("lanBare") != null;
+
             boolean lite = lite120
                     || m.group("liteN") != null
                     || m.group("liteShort") != null
@@ -73,16 +81,31 @@ public class ServerLinkifier {
                     || lanBare;
 
             int serverNum = 1;
-            if (m.group("liteNum") != null) serverNum = parseIntSafe(m.group("liteNum"), 1);
-            else if (m.group("liteShortNum") != null) serverNum = parseIntSafe(m.group("liteShortNum"), 1);
-            else if (m.group("lite120Num") != null) serverNum = parseIntSafe(m.group("lite120Num"), 1);
-            else if (m.group("lanNum") != null) serverNum = parseIntSafe(m.group("lanNum"), 1);
-            else if (m.group("clDashNum") != null) serverNum = parseIntSafe(m.group("clDashNum"), 1);
-            else if (m.group("clNum") != null) serverNum = parseIntSafe(m.group("clNum"), 1);
+
+            if (m.group("l2a3") != null) {
+                serverNum = 3;
+            } else if (m.group("l2a2") != null) {
+                serverNum = 2;
+            } else if (m.group("l2a1") != null) {
+                serverNum = 1;
+            } else if (m.group("liteNum") != null) {
+                serverNum = parseIntSafe(m.group("liteNum"), 1);
+            } else if (m.group("liteShortNum") != null) {
+                serverNum = parseIntSafe(m.group("liteShortNum"), 1);
+            } else if (m.group("lite120Num") != null) {
+                serverNum = parseIntSafe(m.group("lite120Num"), 1);
+            } else if (m.group("lanNum") != null) {
+                serverNum = parseIntSafe(m.group("lanNum"), 1);
+            } else if (m.group("clDashNum") != null) {
+                serverNum = parseIntSafe(m.group("clDashNum"), 1);
+            } else if (m.group("clNum") != null) {
+                serverNum = parseIntSafe(m.group("clNum"), 1);
+            }
 
             String baseCmd = lite120
                     ? cfg.getLight120Command()
                     : (lite ? cfg.getLightCommand() : cfg.getClassicCommand());
+
             String command = "/" + baseCmd + " " + serverNum;
 
             Formatting linkColor = cfg.getLinkColor();
