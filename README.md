@@ -1,13 +1,28 @@
-# HubSwap (Fabric 1.20.1)
+<div align="center">
 
-Мод для игроков+модераторов на **HolyWorld**, который ускоряет и упрощает переход между серверами **Anarchy / Lite-Anarchy**:
-- быстрые команды вида /cn 3, /ln 27, /ln120 2
-- кликабельные названия серверов в чате (например lanarchy30, Lite-Anarchy-40, Anarchy-8) 
-- меню настроек (клавиша **F6** по умолчанию)
-- уведомления о переходе и настройка визуальной темы
+# ⚡ HubSwap
 
+### Fabric-мод для быстрого перехода между Anarchy / Lite-Anarchy серверами на HolyWorld
 
-## ✨ Возможности
+![Minecraft](https://img.shields.io/badge/Minecraft-1.20.1-green?style=for-the-badge)
+![Fabric](https://img.shields.io/badge/Fabric-Mod-purple?style=for-the-badge)
+![Java](https://img.shields.io/badge/Java-17-orange?style=for-the-badge)
+![Downloads](https://img.shields.io/github/downloads/Heldyy90/HubSwap/total?style=for-the-badge&label=Скачиваний&color=blue)
+![Release](https://img.shields.io/github/v/release/Heldyy90/HubSwap?style=for-the-badge&label=Версия&color=brightgreen)
+
+[![Скачать последнюю версию](https://img.shields.io/badge/📥_Скачать_последнюю_версию-HubSwap-blue?style=for-the-badge)](https://github.com/Heldyy90/HubSwap/releases/latest)
+
+</div>
+
+---
+
+## 📌 Описание
+
+**HubSwap** — это мод для игроков и модераторов на **HolyWorld**, который ускоряет переход между серверами **Anarchy / Lite-Anarchy**.
+
+Мод добавляет быстрые команды, кликабельные названия серверов в чате, меню настроек и уведомления о переходе.
+
+---
 
 <!-- HUBSWAP-STATS:START -->
 ## 📊 Статистика проекта
@@ -26,64 +41,25 @@
 _Автообновление: 2026-04-25 14:48 UTC_
 <!-- HUBSWAP-STATS:END -->
 
- **Автопереход** на нужный сервер через последовательность действий (хаб → выбор → переход)
- **Задержки**
-  - задержка после /hub (для прогрузки меню)
-  - задержка между кликами
- **Настраиваемые команды**
-  - Classic: cn (по умолчанию)
-  - Lite: ln (по умолчанию)
-  - Lite 1.20: ln120 (по умолчанию)
- **RU/EN раскладка**
-  - команды регистрируются также под русской раскладкой той же клавиатуры (QWERTY → ЙЦУКЕН)
- **Кликабельные ссылки в чате**
-  - распознаёт: Anarchy, Anarchy-8, anarchy8, Lite-Anarchy-40, lanarchy30 и т.п.
-  - нажатие отправляет команду перехода
- **Настройки интерфейса**
-  - переключаемая цветовая тема элементов
-  - отдельный цвет кликабельных ссылок
- **Уведомления** о переходе (вкл/выкл)
+---
 
+## ✨ Возможности
+
+| Возможность | Описание |
+|---|---|
+| ⚡ Автопереход | Переход на нужный сервер через последовательность действий: хаб → выбор → переход |
+| ⏱️ Задержки | Настройка задержки после `/hub` и задержки между кликами |
+| ⌨️ Команды | Быстрые команды `/cn`, `/ln`, `/ln120` |
+| 🌍 RU/EN раскладка | Команды работают и на русской раскладке клавиатуры |
+| 🖱️ Кликабельный чат | Названия серверов в чате можно нажимать мышкой |
+| 🎨 Настройки интерфейса | Настройка темы, цветов и внешнего вида |
+| 🔔 Уведомления | Уведомления о переходе можно включить или выключить |
+
+---
 
 ## ⌨️ Управление
 
- Открыть настройки: **F6**
-- Примеры команд:
-  - /cn 1 … /cn 8 — Classic Anarchy
-  - /ln 1 … /ln 69 — Lite-Anarchy
-  - /ln120 1 … /ln120 3 — Lite 1.20
+Открыть настройки мода:
 
-
-## 📦 Установка
-
-1. Установи **Fabric Loader** и **Fabric API** под свою версию Minecraft.
-2. Скачай HubSwap-*.jar из **Releases**.
-3. Положи файл в папку:
-   - .minecraft\mods
-   - .minecraft\labymod-neo\fabric\1.20.1\mods (Если играете с LabyMod и используете дополнение **Fabric Loader**
-4. Запусти игру.
-
-
-## 🧱 Сборка из исходников
-
-Требования:
-- **Java 17**
-- Gradle (можно через ./gradlew)
-
-Команды:
-`bash
-./gradlew build
-
-## 📸 Скриншоты
-
-**Сам мод**:
-
-<img width="634" height="307" alt="image" src="https://github.com/user-attachments/assets/afadda42-4651-4323-9b96-df3e0eeb8e7e" />
-
-**Меню настроек: задержки и команды**
-
-<img width="1280" height="1024" alt="image" src="https://github.com/user-attachments/assets/2e65dce9-043a-4bed-98ec-79a73afc0d08" />
-
-
-
-
+```text
+F6
