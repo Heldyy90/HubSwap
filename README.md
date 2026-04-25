@@ -4,15 +4,22 @@
 
 ### Fabric-мод для быстрого перехода между Anarchy / Lite-Anarchy серверами на HolyWorld
 
-![Minecraft](https://img.shields.io/badge/Minecraft-1.20.1-green?style=for-the-badge)
-![Fabric](https://img.shields.io/badge/Fabric-Mod-purple?style=for-the-badge)
-![Java](https://img.shields.io/badge/Java-17-orange?style=for-the-badge)
-![Downloads](https://img.shields.io/github/downloads/Heldyy90/HubSwap/total?style=for-the-badge&label=Скачиваний&color=blue)
-![Release](https://img.shields.io/github/v/release/Heldyy90/HubSwap?style=for-the-badge&label=Версия&color=brightgreen)
-
 [![Скачать последнюю версию](https://img.shields.io/badge/📥_Скачать_последнюю_версию-HubSwap-blue?style=for-the-badge)](https://github.com/Heldyy90/HubSwap/releases/latest)
 
 </div>
+
+---
+
+## 🧩 Информация о моде
+
+| Параметр | Значение |
+|---|---|
+| 🎮 Minecraft | **1.20.1** |
+| 🧵 Mod Loader | **Fabric** |
+| ☕ Java | **17** |
+| 📦 Последняя версия | **v.1.0.2** |
+| 📥 Скачиваний | **172** |
+| 📄 Лицензия | **MIT** |
 
 ---
 
@@ -23,6 +30,14 @@
 Он ускоряет переход между серверами **Anarchy**, **Lite-Anarchy** и **Lite 1.20**, добавляет удобные команды, кликабельные названия серверов в чате, настройки задержек, уведомления и визуальные параметры.
 
 Мод особенно удобен, когда нужно быстро перейти на нужную анархию без ручного поиска сервера в меню.
+
+---
+
+## 🧱 Поддерживаемые версии
+
+| Minecraft | Loader | Java | Версия мода | Скачать |
+|---|---|---|---|---|
+| 1.20.1 | Fabric | Java 17 | v.1.0.2 | [Скачать](https://github.com/Heldyy90/HubSwap/releases/latest) |
 
 ---
 
