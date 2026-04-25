@@ -14,10 +14,10 @@
 
 | Параметр | Значение |
 |---|---|
-| 🎮 Minecraft | **1.20.1** |
+| 🎮 Minecraft | **1.16.5 / 1.17.1 / 1.20.1 / 1.21.4** |
 | 🧵 Mod Loader | **Fabric** |
-| ☕ Java | **17** |
-| 📦 Последняя версия | **v.1.0.2** |
+| ☕ Java | **зависит от версии Minecraft** |
+| 📦 Последняя версия мода | **v.1.0.2** |
 | 📥 Скачиваний | **172** |
 | 📄 Лицензия | **MIT** |
 
@@ -25,7 +25,7 @@
 
 ## 📌 Описание
 
-**HubSwap** — это Fabric-мод для Minecraft **1.20.1**, созданный для игроков и модераторов на **HolyWorld**.
+**HubSwap** — это Fabric-мод для Minecraft, созданный для игроков и модераторов на **HolyWorld**.
 
 Он ускоряет переход между серверами **Anarchy**, **Lite-Anarchy** и **Lite 1.20**, добавляет удобные команды, кликабельные названия серверов в чате, настройки задержек, уведомления и визуальные параметры.
 
@@ -35,9 +35,15 @@
 
 ## 🧱 Поддерживаемые версии
 
-| Minecraft | Loader | Java | Версия мода | Скачать |
+| Minecraft | Loader | Java | Файл | Скачать |
 |---|---|---|---|---|
-| 1.20.1 | Fabric | Java 17 | v.1.0.2 | [Скачать](https://github.com/Heldyy90/HubSwap/releases/latest) |
+| 1.16.5 | Fabric | Java 8+ | `HubSwap-1.16.5-fabric.jar` | [Скачать](https://github.com/Heldyy90/HubSwap/releases/latest) |
+| 1.17.1 | Fabric | Java 16+ | `HubSwap-1.17.1-fabric.jar` | [Скачать](https://github.com/Heldyy90/HubSwap/releases/latest) |
+| 1.20.1 | Fabric | Java 17 | `HubSwap-1.20.1-fabric.jar` | [Скачать](https://github.com/Heldyy90/HubSwap/releases/latest) |
+| 1.21.4 | Fabric | Java 21 | `HubSwap-1.21.4-fabric.jar` | [Скачать](https://github.com/Heldyy90/HubSwap/releases/latest) |
+
+> Выбирай `.jar` файл строго под свою версию Minecraft.  
+> Например, для Minecraft **1.20.1** нужен файл `HubSwap-1.20.1-fabric.jar`.
 
 ---
 
