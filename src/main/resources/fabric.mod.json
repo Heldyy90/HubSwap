@@ -1,19 +1,22 @@
 {
   "schemaVersion": 1,
   "id": "hubswap",
-  "version": "${version}",
+  "version": "1.0.0",
   "name": "HubSwap",
-  "description": "Авто-переход на анархии (Lite / Classic / Lite 1.20) через меню сервера.",
+  "description": "HubSwap client mod",
   "authors": [
     "Heldyy"
   ],
   "contact": {},
-  "license": "All-Rights-Reserved",
+  "license": "MIT",
   "icon": "assets/hubswap/icon.png",
   "environment": "client",
   "entrypoints": {
     "client": [
       "ru.heldyy.hubswap.client.HubSwapClient"
+    ],
+    "main": [
+      "ru.heldyy.hubswap.HubSwap"
     ]
   },
   "mixins": [
@@ -21,7 +24,8 @@
   ],
   "depends": {
     "fabricloader": ">=0.15.0",
-    "fabric": "*",
-    "minecraft": "1.20.1"
+    "minecraft": "1.20.1",
+    "fabric-api": "*",
+    "java": ">=17"
   }
 }
