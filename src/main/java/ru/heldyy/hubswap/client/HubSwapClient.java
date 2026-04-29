@@ -21,6 +21,7 @@ import ru.heldyy.hubswap.gui.ConfigScreen;
 import ru.heldyy.hubswap.gui.MinecraftStatsHelper;
 import ru.heldyy.hubswap.gui.NotificationRenderer;
 import ru.heldyy.hubswap.gui.TransitionDetector;
+import ru.heldyy.hubswap.updater.UpdateChecker;
 
 import java.util.HashMap;
 import java.util.List;
@@ -73,6 +74,7 @@ public class HubSwapClient implements ClientModInitializer {
 
     public static void registerConfiguredCommands() {
         if (DISPATCHER == null) return;
+
         registerClassicCommand(HubSwap.getConfig().getClassicCommand());
         registerLightCommand(HubSwap.getConfig().getLightCommand());
         registerLight120Command(HubSwap.getConfig().getLight120Command());
@@ -83,6 +85,7 @@ public class HubSwapClient implements ClientModInitializer {
     }
 
     private static void registerLightCommand(String literal) {
+        // Было 69, теперь 70
         registerWithRuAlias(literal, 1, 69, anarchy -> AnarchyExecutor.executeSequence("light", anarchy));
     }
 
@@ -92,15 +95,22 @@ public class HubSwapClient implements ClientModInitializer {
 
     private static void registerWithRuAlias(String literal, int min, int max, IntConsumer action) {
         if (literal == null || literal.isBlank()) return;
+
         String base = literal.trim();
+
         registerLiteralIfAbsent(base, min, max, action);
+
         String ru = toRussianLayout(base);
-        if (!ru.equalsIgnoreCase(base)) registerLiteralIfAbsent(ru, min, max, action);
+
+        if (!ru.equalsIgnoreCase(base)) {
+            registerLiteralIfAbsent(ru, min, max, action);
+        }
     }
 
     private static void registerLiteralIfAbsent(String literal, int min, int max, IntConsumer action) {
         if (literal == null || literal.isBlank() || DISPATCHER == null) return;
         if (DISPATCHER.getRoot().getChild(literal) != null) return;
+
         DISPATCHER.register(ClientCommandManager.literal(literal)
                 .then(ClientCommandManager.argument("номер", IntegerArgumentType.integer(min, max))
                         .executes(ctx -> {
@@ -112,12 +122,15 @@ public class HubSwapClient implements ClientModInitializer {
 
     private static String toRussianLayout(String s) {
         StringBuilder out = new StringBuilder(s.length());
+
         for (int i = 0; i < s.length(); i++) {
             char ch = s.charAt(i);
             char lower = Character.toLowerCase(ch);
             Character mapped = EN_TO_RU.get(lower);
+
             out.append(mapped != null ? mapped : ch);
         }
+
         return out.toString();
     }
 
@@ -128,8 +141,10 @@ public class HubSwapClient implements ClientModInitializer {
 
             if (configMenuKey.wasPressed()) {
                 client.setScreen(new ConfigScreen(null));
+
                 if (client.player != null) {
                     Formatting themeColor = HubSwap.getConfig().getColorTheme().getFormatting();
+
                     client.player.sendMessage(
                             Text.literal("[HubSwap] ").formatted(themeColor)
                                     .append(Text.literal("Открыто меню настроек").formatted(Formatting.WHITE)),
@@ -140,6 +155,7 @@ public class HubSwapClient implements ClientModInitializer {
 
             if (client.currentScreen == null && client.player != null) {
                 List<HotkeySlot> slots = HubSwap.getConfig().getHotkeySlots();
+
                 for (HotkeySlot slot : slots) {
                     if (!slot.isEnabled() || slot.getKeyCode() < 0) continue;
 
@@ -150,6 +166,7 @@ public class HubSwapClient implements ClientModInitializer {
                     if (nowDown && !wasDown) {
                         AnarchyExecutor.executeSequence(slot.getMode(), slot.getServerNumber());
                     }
+
                     hotkeyPressed.put(code, nowDown);
                 }
             }
@@ -158,6 +175,12 @@ public class HubSwapClient implements ClientModInitializer {
 
     private void registerLifecycleEvents() {
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> HubSwap.saveStats());
+
+        // Проверка новой версии после входа на сервер
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+            UpdateChecker.checkAfterJoin();
+        });
+
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> TransitionDetector.onDisconnect());
     }
 }
