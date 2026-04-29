@@ -36,29 +36,45 @@ public class AnarchyExecutor {
                         return;
                     }
 
-                    TransitionDetector.startAttempt(TransitionMode.CLASSIC, anarchyNumber, delays.hubDelay(), delays.clickDelay(), delays.confirmDelay());
+                    TransitionDetector.startAttempt(
+                            TransitionMode.CLASSIC,
+                            anarchyNumber,
+                            delays.hubDelay(),
+                            delays.clickDelay(),
+                            delays.confirmDelay()
+                    );
 
                     sendCommand("hub");
                     sleep(delays.hubDelay());
+
                     sendCommand("menu");
                     sleep(delays.clickDelay());
 
                     clickSlot(15);
                     sleep(delays.clickDelay() + 60L);
+
                     clickSlot(getClassicTargetSlot(anarchyNumber));
                     return;
                 }
 
                 if ("light".equals(mode)) {
-                    if (anarchyNumber < 1 || anarchyNumber > 69) {
+                    // Было максимум 69, теперь максимум 70
+                    if (anarchyNumber < 1 || anarchyNumber > 70) {
                         sendErrorMessage("Недопустимый номер анархии: " + anarchyNumber);
                         return;
                     }
 
-                    TransitionDetector.startAttempt(TransitionMode.LIGHT, anarchyNumber, delays.hubDelay(), delays.clickDelay(), delays.confirmDelay());
+                    TransitionDetector.startAttempt(
+                            TransitionMode.LIGHT,
+                            anarchyNumber,
+                            delays.hubDelay(),
+                            delays.clickDelay(),
+                            delays.confirmDelay()
+                    );
 
                     sendCommand("hub");
                     sleep(delays.hubDelay());
+
                     sendCommand("menu");
                     sleep(delays.clickDelay());
 
@@ -66,8 +82,10 @@ public class AnarchyExecutor {
                     sleep(delays.clickDelay() + 60L);
 
                     int[] slots = getLightTargetSlots(anarchyNumber);
+
                     clickSlot(slots[0]);
                     sleep(delays.clickDelay() + 60L);
+
                     clickSlot(slots[1]);
                     return;
                 }
@@ -78,15 +96,23 @@ public class AnarchyExecutor {
                         return;
                     }
 
-                    TransitionDetector.startAttempt(TransitionMode.LIGHT120, anarchyNumber, delays.hubDelay(), delays.clickDelay(), delays.confirmDelay());
+                    TransitionDetector.startAttempt(
+                            TransitionMode.LIGHT120,
+                            anarchyNumber,
+                            delays.hubDelay(),
+                            delays.clickDelay(),
+                            delays.confirmDelay()
+                    );
 
                     sendCommand("hub");
                     sleep(delays.hubDelay());
+
                     sendCommand("menu");
                     sleep(delays.clickDelay());
 
                     clickSlot(10);
                     sleep(delays.clickDelay() + 60L);
+
                     clickSlot(getLite120TargetSlot(anarchyNumber));
                     return;
                 }
@@ -103,9 +129,11 @@ public class AnarchyExecutor {
 
     private static int getClassicTargetSlot(int number) {
         int[] slots = new int[]{20, 21, 22, 23, 24};
+
         if (number < 1 || number > slots.length) {
             return slots[0];
         }
+
         return slots[number - 1];
     }
 
@@ -114,28 +142,35 @@ public class AnarchyExecutor {
         int offset;
 
         if (number <= 16) {
+            // СолоЛайт #1-#16
             pageSlot = 0;
             offset = number - 1;
         } else if (number <= 37) {
+            // ДуоЛайт #17-#37
             pageSlot = 1;
             offset = number - 17;
         } else if (number <= 53) {
+            // ТриоЛайт #38-#53
             pageSlot = 2;
             offset = number - 38;
         } else {
+            // КланЛайт #54-#70
             pageSlot = 3;
             offset = number - 54;
         }
 
         int targetSlot = 18 + offset;
+
         return new int[]{pageSlot, targetSlot};
     }
 
     private static int getLite120TargetSlot(int number) {
         int[] slots = new int[]{0, 11, 12, 13};
+
         if (number < 1 || number >= slots.length) {
             return slots[1];
         }
+
         return slots[number];
     }
 
@@ -146,9 +181,11 @@ public class AnarchyExecutor {
             }
 
             String cmd = command == null ? "" : command.trim();
+
             if (cmd.startsWith("/")) {
                 cmd = cmd.substring(1);
             }
+
             if (cmd.isEmpty()) {
                 return;
             }
@@ -159,7 +196,10 @@ public class AnarchyExecutor {
 
     private static void clickSlot(int slot) {
         client.execute(() -> {
-            if (client.interactionManager != null && client.player != null && client.player.currentScreenHandler != null) {
+            if (client.interactionManager != null
+                    && client.player != null
+                    && client.player.currentScreenHandler != null) {
+
                 client.interactionManager.clickSlot(
                         client.player.currentScreenHandler.syncId,
                         slot,
