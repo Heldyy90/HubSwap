@@ -58,7 +58,6 @@ public class AnarchyExecutor {
                 }
 
                 if ("light".equals(mode)) {
-                    // Было максимум 69, теперь максимум 70
                     if (anarchyNumber < 1 || anarchyNumber > 70) {
                         sendErrorMessage("Недопустимый номер анархии: " + anarchyNumber);
                         return;
