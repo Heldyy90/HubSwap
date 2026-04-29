@@ -3,7 +3,7 @@
   "id": "hubswap",
   "version": "1.0.0",
   "name": "HubSwap",
-  "description": "HubSwap client mod",
+  "description": "Авто-переход на анархии (Lite / Classic / Lite 1.20) через меню сервера.",
   "authors": [
     "Heldyy"
   ],
