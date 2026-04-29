@@ -18,11 +18,9 @@ import java.nio.charset.StandardCharsets;
 public class UpdateChecker {
     private static final String MOD_ID = "hubswap";
 
-    // Ссылка на GitHub API последнего релиза
     private static final String GITHUB_API =
             "https://api.github.com/repos/Heldyy90/HubSwap/releases/latest";
 
-    // Ссылка, которая откроется при нажатии [СКАЧАТЬ]
     private static final String REPO_URL =
             "https://github.com/Heldyy90/HubSwap/releases/latest";
 
@@ -50,7 +48,7 @@ public class UpdateChecker {
                 }
 
             } catch (Exception ignored) {
-                // Не спамим ошибками в чат, если нет интернета или GitHub не ответил
+                
             }
         }, "HubSwap Update Checker").start();
     }
