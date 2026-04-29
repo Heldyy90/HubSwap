@@ -1,186 +1,231 @@
-package ru.heldyy.hubswap.client;
+package ru.heldyy.hubswap.executor;
 
-import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.arguments.IntegerArgumentType;
-import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
-import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-import net.minecraft.client.option.KeyBinding;
-import net.minecraft.client.util.InputUtil;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
 import ru.heldyy.hubswap.HubSwap;
-import ru.heldyy.hubswap.config.HotkeySlot;
-import ru.heldyy.hubswap.executor.AnarchyExecutor;
-import ru.heldyy.hubswap.gui.ConfigScreen;
-import ru.heldyy.hubswap.gui.MinecraftStatsHelper;
-import ru.heldyy.hubswap.gui.NotificationRenderer;
+import ru.heldyy.hubswap.config.ModConfig;
+import ru.heldyy.hubswap.gui.AutoTuneManager;
 import ru.heldyy.hubswap.gui.TransitionDetector;
-import ru.heldyy.hubswap.updater.UpdateChecker;
+import ru.heldyy.hubswap.gui.TransitionMode;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.function.IntConsumer;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-public class HubSwapClient implements ClientModInitializer {
-    private static KeyBinding configMenuKey;
-    private static CommandDispatcher<FabricClientCommandSource> DISPATCHER;
+public class AnarchyExecutor {
+    private static final MinecraftClient client = MinecraftClient.getInstance();
+    private static final ExecutorService executor = Executors.newSingleThreadExecutor();
 
-    private static final Map<Integer, Boolean> hotkeyPressed = new HashMap<>();
+    public static void executeSequence(String mode, int anarchyNumber) {
+        ModConfig config = HubSwap.getConfig();
+        AutoTuneManager.Delays delays = AutoTuneManager.getLiveDelays(config);
 
-    private static final Map<Character, Character> EN_TO_RU = new HashMap<>();
-
-    static {
-        EN_TO_RU.put('q', 'й'); EN_TO_RU.put('w', 'ц'); EN_TO_RU.put('e', 'у');
-        EN_TO_RU.put('r', 'к'); EN_TO_RU.put('t', 'е'); EN_TO_RU.put('y', 'н');
-        EN_TO_RU.put('u', 'г'); EN_TO_RU.put('i', 'ш'); EN_TO_RU.put('o', 'щ');
-        EN_TO_RU.put('p', 'з'); EN_TO_RU.put('a', 'ф'); EN_TO_RU.put('s', 'ы');
-        EN_TO_RU.put('d', 'в'); EN_TO_RU.put('f', 'а'); EN_TO_RU.put('g', 'п');
-        EN_TO_RU.put('h', 'р'); EN_TO_RU.put('j', 'о'); EN_TO_RU.put('k', 'л');
-        EN_TO_RU.put('l', 'д'); EN_TO_RU.put('z', 'я'); EN_TO_RU.put('x', 'ч');
-        EN_TO_RU.put('c', 'с'); EN_TO_RU.put('v', 'м'); EN_TO_RU.put('b', 'и');
-        EN_TO_RU.put('n', 'т'); EN_TO_RU.put('m', 'ь');
-    }
-
-    @Override
-    public void onInitializeClient() {
-        registerKeybinds();
-        registerCommands();
-        registerTickHandler();
-        registerLifecycleEvents();
-        NotificationRenderer.register();
-    }
-
-    private void registerKeybinds() {
-        configMenuKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.hubswap.config",
-                295,
-                "category.hubswap.main"
-        ));
-    }
-
-    private void registerCommands() {
-        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
-            DISPATCHER = dispatcher;
-            registerConfiguredCommands();
-        });
-    }
-
-    public static void registerConfiguredCommands() {
-        if (DISPATCHER == null) return;
-
-        registerClassicCommand(HubSwap.getConfig().getClassicCommand());
-        registerLightCommand(HubSwap.getConfig().getLightCommand());
-        registerLight120Command(HubSwap.getConfig().getLight120Command());
-    }
-
-    private static void registerClassicCommand(String literal) {
-        registerWithRuAlias(literal, 1, 5, anarchy -> AnarchyExecutor.executeSequence("classic", anarchy));
-    }
-
-    private static void registerLightCommand(String literal) {
-        // Было 69, теперь 70
-        registerWithRuAlias(literal, 1, 69, anarchy -> AnarchyExecutor.executeSequence("light", anarchy));
-    }
-
-    private static void registerLight120Command(String literal) {
-        registerWithRuAlias(literal, 1, 3, server -> AnarchyExecutor.executeSequence("light120", server));
-    }
-
-    private static void registerWithRuAlias(String literal, int min, int max, IntConsumer action) {
-        if (literal == null || literal.isBlank()) return;
-
-        String base = literal.trim();
-
-        registerLiteralIfAbsent(base, min, max, action);
-
-        String ru = toRussianLayout(base);
-
-        if (!ru.equalsIgnoreCase(base)) {
-            registerLiteralIfAbsent(ru, min, max, action);
-        }
-    }
-
-    private static void registerLiteralIfAbsent(String literal, int min, int max, IntConsumer action) {
-        if (literal == null || literal.isBlank() || DISPATCHER == null) return;
-        if (DISPATCHER.getRoot().getChild(literal) != null) return;
-
-        DISPATCHER.register(ClientCommandManager.literal(literal)
-                .then(ClientCommandManager.argument("номер", IntegerArgumentType.integer(min, max))
-                        .executes(ctx -> {
-                            int value = IntegerArgumentType.getInteger(ctx, "номер");
-                            action.accept(value);
-                            return 1;
-                        })));
-    }
-
-    private static String toRussianLayout(String s) {
-        StringBuilder out = new StringBuilder(s.length());
-
-        for (int i = 0; i < s.length(); i++) {
-            char ch = s.charAt(i);
-            char lower = Character.toLowerCase(ch);
-            Character mapped = EN_TO_RU.get(lower);
-
-            out.append(mapped != null ? mapped : ch);
+        if (client.player == null || client.interactionManager == null) {
+            sendErrorMessage("Игрок или взаимодействие недоступны");
+            return;
         }
 
-        return out.toString();
-    }
+        HubSwap.getStats().recordSwitch(mode, anarchyNumber);
+        HubSwap.saveStats();
 
-    private void registerTickHandler() {
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            MinecraftStatsHelper.onClientTick();
-            TransitionDetector.onClientTick(client);
-
-            if (configMenuKey.wasPressed()) {
-                client.setScreen(new ConfigScreen(null));
-
-                if (client.player != null) {
-                    Formatting themeColor = HubSwap.getConfig().getColorTheme().getFormatting();
-
-                    client.player.sendMessage(
-                            Text.literal("[HubSwap] ").formatted(themeColor)
-                                    .append(Text.literal("Открыто меню настроек").formatted(Formatting.WHITE)),
-                            false
-                    );
-                }
-            }
-
-            if (client.currentScreen == null && client.player != null) {
-                List<HotkeySlot> slots = HubSwap.getConfig().getHotkeySlots();
-
-                for (HotkeySlot slot : slots) {
-                    if (!slot.isEnabled() || slot.getKeyCode() < 0) continue;
-
-                    int code = slot.getKeyCode();
-                    boolean nowDown = InputUtil.isKeyPressed(client.getWindow().getHandle(), code);
-                    boolean wasDown = hotkeyPressed.getOrDefault(code, false);
-
-                    if (nowDown && !wasDown) {
-                        AnarchyExecutor.executeSequence(slot.getMode(), slot.getServerNumber());
+        executor.execute(() -> {
+            try {
+                if ("classic".equals(mode)) {
+                    if (anarchyNumber < 1 || anarchyNumber > 5) {
+                        sendErrorMessage("Недопустимый номер анархии: " + anarchyNumber);
+                        return;
                     }
 
-                    hotkeyPressed.put(code, nowDown);
+                    TransitionDetector.startAttempt(
+                            TransitionMode.CLASSIC,
+                            anarchyNumber,
+                            delays.hubDelay(),
+                            delays.clickDelay(),
+                            delays.confirmDelay()
+                    );
+
+                    sendCommand("hub");
+                    sleep(delays.hubDelay());
+
+                    sendCommand("menu");
+                    sleep(delays.clickDelay());
+
+                    clickSlot(15);
+                    sleep(delays.clickDelay() + 60L);
+
+                    clickSlot(getClassicTargetSlot(anarchyNumber));
+                    return;
                 }
+
+                if ("light".equals(mode)) {
+                    // Было максимум 69, теперь максимум 70
+                    if (anarchyNumber < 1 || anarchyNumber > 70) {
+                        sendErrorMessage("Недопустимый номер анархии: " + anarchyNumber);
+                        return;
+                    }
+
+                    TransitionDetector.startAttempt(
+                            TransitionMode.LIGHT,
+                            anarchyNumber,
+                            delays.hubDelay(),
+                            delays.clickDelay(),
+                            delays.confirmDelay()
+                    );
+
+                    sendCommand("hub");
+                    sleep(delays.hubDelay());
+
+                    sendCommand("menu");
+                    sleep(delays.clickDelay());
+
+                    clickSlot(12);
+                    sleep(delays.clickDelay() + 60L);
+
+                    int[] slots = getLightTargetSlots(anarchyNumber);
+
+                    clickSlot(slots[0]);
+                    sleep(delays.clickDelay() + 60L);
+
+                    clickSlot(slots[1]);
+                    return;
+                }
+
+                if ("light120".equals(mode)) {
+                    if (anarchyNumber < 1 || anarchyNumber > 3) {
+                        sendErrorMessage("Недопустимый номер сервера: " + anarchyNumber);
+                        return;
+                    }
+
+                    TransitionDetector.startAttempt(
+                            TransitionMode.LIGHT120,
+                            anarchyNumber,
+                            delays.hubDelay(),
+                            delays.clickDelay(),
+                            delays.confirmDelay()
+                    );
+
+                    sendCommand("hub");
+                    sleep(delays.hubDelay());
+
+                    sendCommand("menu");
+                    sleep(delays.clickDelay());
+
+                    clickSlot(10);
+                    sleep(delays.clickDelay() + 60L);
+
+                    clickSlot(getLite120TargetSlot(anarchyNumber));
+                    return;
+                }
+
+                sendErrorMessage("Неизвестный режим: " + mode);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                sendErrorMessage("Ошибка выполнения последовательности");
+            } catch (Exception e) {
+                sendErrorMessage("Сбой автоперехода: " + e.getClass().getSimpleName());
             }
         });
     }
 
-    private void registerLifecycleEvents() {
-        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> HubSwap.saveStats());
+    private static int getClassicTargetSlot(int number) {
+        int[] slots = new int[]{20, 21, 22, 23, 24};
 
-        // Проверка новой версии после входа на сервер
-        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
-            UpdateChecker.checkAfterJoin();
+        if (number < 1 || number > slots.length) {
+            return slots[0];
+        }
+
+        return slots[number - 1];
+    }
+
+    private static int[] getLightTargetSlots(int number) {
+        int pageSlot;
+        int offset;
+
+        if (number <= 16) {
+            // СолоЛайт #1-#16
+            pageSlot = 0;
+            offset = number - 1;
+        } else if (number <= 37) {
+            // ДуоЛайт #17-#37
+            pageSlot = 1;
+            offset = number - 17;
+        } else if (number <= 53) {
+            // ТриоЛайт #38-#53
+            pageSlot = 2;
+            offset = number - 38;
+        } else {
+            // КланЛайт #54-#70
+            pageSlot = 3;
+            offset = number - 54;
+        }
+
+        int targetSlot = 18 + offset;
+
+        return new int[]{pageSlot, targetSlot};
+    }
+
+    private static int getLite120TargetSlot(int number) {
+        int[] slots = new int[]{0, 11, 12, 13};
+
+        if (number < 1 || number >= slots.length) {
+            return slots[1];
+        }
+
+        return slots[number];
+    }
+
+    private static void sendCommand(String command) {
+        client.execute(() -> {
+            if (client.player == null || client.getNetworkHandler() == null) {
+                return;
+            }
+
+            String cmd = command == null ? "" : command.trim();
+
+            if (cmd.startsWith("/")) {
+                cmd = cmd.substring(1);
+            }
+
+            if (cmd.isEmpty()) {
+                return;
+            }
+
+            client.getNetworkHandler().sendChatCommand(cmd);
         });
+    }
 
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> TransitionDetector.onDisconnect());
+    private static void clickSlot(int slot) {
+        client.execute(() -> {
+            if (client.interactionManager != null
+                    && client.player != null
+                    && client.player.currentScreenHandler != null) {
+
+                client.interactionManager.clickSlot(
+                        client.player.currentScreenHandler.syncId,
+                        slot,
+                        0,
+                        SlotActionType.PICKUP,
+                        client.player
+                );
+            } else {
+                sendErrorMessage("Меню не открыто или синхронизация нарушена");
+            }
+        });
+    }
+
+    private static void sendErrorMessage(String message) {
+        client.execute(() -> {
+            if (client.player != null) {
+                client.player.sendMessage(Text.literal("[HubSwap] Ошибка: " + message), false);
+            }
+        });
+    }
+
+    private static void sleep(long ms) throws InterruptedException {
+        Thread.sleep(ms);
+    }
+
+    public static void shutdown() {
+        executor.shutdown();
     }
 }
