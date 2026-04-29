@@ -32,7 +32,6 @@ public class UpdateChecker {
 
         new Thread(() -> {
             try {
-                // Задержка, чтобы игрок уже успел зайти на сервер
                 Thread.sleep(3500);
 
                 String currentVersion = getCurrentVersion();
@@ -48,7 +47,6 @@ public class UpdateChecker {
                 }
 
             } catch (Exception ignored) {
-                
             }
         }, "HubSwap Update Checker").start();
     }
@@ -125,10 +123,14 @@ public class UpdateChecker {
     private static String normalizeVersion(String version) {
         if (version == null) return "0.0.0";
 
-        return version.toLowerCase()
+        String clean = version.toLowerCase()
                 .replace("version", "")
-                .replace("v", "")
+                .replaceAll("[^0-9.]", "")
+                .replaceAll("^\\.+", "")
+                .replaceAll("\\.+$", "")
                 .trim();
+
+        return clean.isEmpty() ? "0.0.0" : clean;
     }
 
     private static boolean isNewerVersion(String latest, String current) {
@@ -147,13 +149,20 @@ public class UpdateChecker {
         int[] result = new int[]{0, 0, 0};
 
         try {
-            String[] parts = version.split("\\.");
+            String cleanVersion = normalizeVersion(version);
+            String[] parts = cleanVersion.split("\\.");
 
-            for (int i = 0; i < Math.min(parts.length, 3); i++) {
-                String clean = parts[i].replaceAll("[^0-9]", "");
+            int index = 0;
+
+            for (String part : parts) {
+                if (index >= 3) break;
+                if (part == null || part.isBlank()) continue;
+
+                String clean = part.replaceAll("[^0-9]", "");
 
                 if (!clean.isEmpty()) {
-                    result[i] = Integer.parseInt(clean);
+                    result[index] = Integer.parseInt(clean);
+                    index++;
                 }
             }
         } catch (Exception ignored) {
