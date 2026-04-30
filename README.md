@@ -39,7 +39,7 @@
 |---|---|---|---|---|
 | 1.16.5 | Fabric | Java 8+ | `HubSwap-1.16.5-fabric.jar` | [Скачать](https://github.com/Heldyy90/HubSwap/releases/tag/v1.0.0) |
 | 1.17.1 | Fabric | Java 16+ | `HubSwap-1.17.1-fabric.jar` | [Скачать](https://github.com/Heldyy90/HubSwap/releases/tag/v1.0.0) |
-| 1.20.1 | Fabric | Java 17 | `HubSwap-1.20.1-fabric.jar` | [Скачать](https://github.com/Heldyy90/HubSwap/releases/tag/v.1.0.2) |
+| 1.20.1 | Fabric | Java 17 | `HubSwap-1.20.1-fabric.jar` | [Скачать](https://github.com/Heldyy90/HubSwap/releases/tag/v.1.0.3) |
 | 1.21.4 | Fabric | Java 21 | `HubSwap-1.21.4-fabric.jar` | [Скачать](https://github.com/Heldyy90/HubSwap/releases/tag/v1.0.0) |
 
 > Выбирай `.jar` файл строго под свою версию Minecraft.  
