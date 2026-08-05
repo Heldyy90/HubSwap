@@ -1,16 +1,16 @@
 {
   "enabled": true,
-  "type": "announcement",
+  "type": "update",
   "id": "hubswap-1.0.7-mc1.21.11",
-  "revision": 2,
-  "title": "HubSwap 1.0.7 — обновление",
+  "revision": 3,
+  "title": "Доступно обновление HubSwap",
   "lines": [
-    "Мод полностью переписан и адаптирован под Minecraft 1.21.11 Fabric.",
-    "Добавлен режим Prime и быстрый переход: /pn 1-9.",
-    "Добавлены кликабельные Prime-серверы.",
-    "Сохранены хоткеи, статистика и умный автоподбор задержек."
+    "HubSwap полностью переписан под Minecraft 1.21.11 Fabric.",
+    "Добавлен новый режим Primе с быстрым переходом /pn 1-9.",
+    "Добавлены кликабельные Primе-серверы в чате.",
+    "Обновлены переходы, хоткеи, статистика и автоподбор задержек."
   ],
-  "version": "",
-  "downloadUrl": "",
-  "downloadButton": false
+  "version": "1.0.7",
+  "downloadUrl": "https://github.com/Heldyy90/HubSwap/releases/tag/v.1.0.7",
+  "downloadButton": true
 }
