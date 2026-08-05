@@ -18,8 +18,6 @@ public class AnarchyExecutor {
 
     public static void executeSequence(String mode, int anarchyNumber) {
         ModConfig config = HubSwap.getConfig();
-        AutoTuneManager.Delays delays = AutoTuneManager.getLiveDelays(config);
-
         if (client.player == null || client.interactionManager == null) {
             sendErrorMessage("Игрок или взаимодействие недоступны");
             return;
@@ -36,56 +34,63 @@ public class AnarchyExecutor {
                         return;
                     }
 
-                    TransitionDetector.startAttempt(
+                    AutoTuneManager.Delays delays = AutoTuneManager.getLiveDelays(config, TransitionMode.CLASSIC);
+
+                    boolean alreadyInHub = prepareHubTransition(
                             TransitionMode.CLASSIC,
                             anarchyNumber,
-                            delays.hubDelay(),
-                            delays.clickDelay(),
-                            delays.confirmDelay()
+                            delays
                     );
 
-                    sendCommand("hub");
-                    sleep(delays.hubDelay());
+                    if (!alreadyInHub && !waitUntilHubDetected(getClassicHubTimeout(delays))) {
+                        TransitionDetector.cancelAttempt();
+                        sendErrorMessage("Hub не определился");
+                        return;
+                    }
 
+                    TransitionDetector.markOpeningMenu();
                     sendCommand("menu");
                     sleep(delays.clickDelay());
 
-                    clickSlot(15);
+                    TransitionDetector.markClicking();
+                    clickSlot(16, false);
                     sleep(delays.clickDelay() + 60L);
 
-                    clickSlot(getClassicTargetSlot(anarchyNumber));
+                    clickSlot(getClassicTargetSlot(anarchyNumber), true);
                     return;
                 }
 
                 if ("light".equals(mode)) {
-                    if (anarchyNumber < 1 || anarchyNumber > 70) {
+                    if (anarchyNumber < 1 || anarchyNumber > 74) {
                         sendErrorMessage("Недопустимый номер анархии: " + anarchyNumber);
                         return;
                     }
 
-                    TransitionDetector.startAttempt(
+                    AutoTuneManager.Delays delays = AutoTuneManager.getLiveDelays(config, TransitionMode.LIGHT);
+
+                    boolean alreadyInHub = prepareHubTransition(
                             TransitionMode.LIGHT,
                             anarchyNumber,
-                            delays.hubDelay(),
-                            delays.clickDelay(),
-                            delays.confirmDelay()
+                            delays
                     );
 
-                    sendCommand("hub");
-                    sleep(delays.hubDelay());
+                    if (!alreadyInHub && !waitUntilHubDetected(3500L)) {
+                        TransitionDetector.cancelAttempt();
+                        sendErrorMessage("Hub не определился");
+                        return;
+                    }
 
-                    sendCommand("menu");
+                    TransitionDetector.markOpeningMenu();
+                    sendCommand("lite");
                     sleep(delays.clickDelay());
-
-                    clickSlot(12);
-                    sleep(delays.clickDelay() + 60L);
 
                     int[] slots = getLightTargetSlots(anarchyNumber);
 
-                    clickSlot(slots[0]);
+                    TransitionDetector.markClicking();
+                    clickSlot(slots[0], false);
                     sleep(delays.clickDelay() + 60L);
 
-                    clickSlot(slots[1]);
+                    clickSlot(slots[1], true);
                     return;
                 }
 
@@ -95,24 +100,55 @@ public class AnarchyExecutor {
                         return;
                     }
 
-                    TransitionDetector.startAttempt(
+                    AutoTuneManager.Delays delays = AutoTuneManager.getLiveDelays(config, TransitionMode.LIGHT120);
+
+                    boolean alreadyInHub = prepareHubTransition(
                             TransitionMode.LIGHT120,
                             anarchyNumber,
-                            delays.hubDelay(),
-                            delays.clickDelay(),
-                            delays.confirmDelay()
+                            delays
                     );
 
-                    sendCommand("hub");
-                    sleep(delays.hubDelay());
+                    if (!alreadyInHub && !waitUntilHubDetected(3500L)) {
+                        TransitionDetector.cancelAttempt();
+                        sendErrorMessage("Hub не определился");
+                        return;
+                    }
 
-                    sendCommand("menu");
+                    TransitionDetector.markOpeningMenu();
+                    sendCommand("lite120");
                     sleep(delays.clickDelay());
 
-                    clickSlot(10);
-                    sleep(delays.clickDelay() + 60L);
+                    TransitionDetector.markClicking();
+                    clickSlot(getLite120TargetSlot(anarchyNumber), true);
+                    return;
+                }
 
-                    clickSlot(getLite120TargetSlot(anarchyNumber));
+                if ("prime".equals(mode)) {
+                    if (anarchyNumber < 1 || anarchyNumber > 9) {
+                        sendErrorMessage("Недопустимый номер Prime: " + anarchyNumber);
+                        return;
+                    }
+
+                    AutoTuneManager.Delays delays = AutoTuneManager.getLiveDelays(config, TransitionMode.PRIME);
+
+                    boolean alreadyInHub = prepareHubTransition(
+                            TransitionMode.PRIME,
+                            anarchyNumber,
+                            delays
+                    );
+
+                    if (!alreadyInHub && !waitUntilHubDetected(3500L)) {
+                        TransitionDetector.cancelAttempt();
+                        sendErrorMessage("Hub не определился");
+                        return;
+                    }
+
+                    TransitionDetector.markOpeningMenu();
+                    sendCommand("prime");
+                    sleep(delays.clickDelay());
+
+                    TransitionDetector.markClicking();
+                    clickSlot(getPrimeTargetSlot(anarchyNumber), true);
                     return;
                 }
 
@@ -124,6 +160,46 @@ public class AnarchyExecutor {
                 sendErrorMessage("Сбой автоперехода: " + e.getClass().getSimpleName());
             }
         });
+    }
+
+
+    private static boolean prepareHubTransition(TransitionMode mode, int anarchyNumber, AutoTuneManager.Delays delays) {
+        boolean alreadyInHub = TransitionDetector.isInHub(client);
+
+        TransitionDetector.startAttempt(
+                mode,
+                anarchyNumber,
+                alreadyInHub ? 0 : delays.hubDelay(),
+                delays.clickDelay(),
+                delays.confirmDelay()
+        );
+
+        if (!alreadyInHub) {
+            sendCommand("hub");
+        }
+
+        return alreadyInHub;
+    }
+
+
+    private static long getClassicHubTimeout(AutoTuneManager.Delays delays) {
+        
+        
+        return Math.max(3500L, Math.min(6500L, delays.hubDelay() + 1500L));
+    }
+
+    private static boolean waitUntilHubDetected(long timeoutMs) throws InterruptedException {
+        long started = System.currentTimeMillis();
+
+        while (System.currentTimeMillis() - started < timeoutMs) {
+            if (TransitionDetector.isInHub(client)) {
+                return true;
+            }
+
+            sleep(100L);
+        }
+
+        return false;
     }
 
     private static int getClassicTargetSlot(int number) {
@@ -140,22 +216,18 @@ public class AnarchyExecutor {
         int pageSlot;
         int offset;
 
-        if (number <= 16) {
-            // СолоЛайт #1-#16
+        if (number <= 17) {
             pageSlot = 0;
             offset = number - 1;
-        } else if (number <= 37) {
-            // ДуоЛайт #17-#37
+        } else if (number <= 38) {
             pageSlot = 1;
-            offset = number - 17;
-        } else if (number <= 53) {
-            // ТриоЛайт #38-#53
+            offset = number - 18;
+        } else if (number <= 57) {
             pageSlot = 2;
-            offset = number - 38;
+            offset = number - 39;
         } else {
-            // КланЛайт #54-#70
             pageSlot = 3;
-            offset = number - 54;
+            offset = number - 58;
         }
 
         int targetSlot = 18 + offset;
@@ -165,6 +237,16 @@ public class AnarchyExecutor {
 
     private static int getLite120TargetSlot(int number) {
         int[] slots = new int[]{0, 11, 12, 13};
+
+        if (number < 1 || number >= slots.length) {
+            return slots[1];
+        }
+
+        return slots[number];
+    }
+
+    private static int getPrimeTargetSlot(int number) {
+        int[] slots = new int[]{0, 10, 11, 12, 13, 14, 15, 16, 19, 20};
 
         if (number < 1 || number >= slots.length) {
             return slots[1];
@@ -193,11 +275,16 @@ public class AnarchyExecutor {
         });
     }
 
-    private static void clickSlot(int slot) {
+    private static void clickSlot(int slot, boolean targetClick) {
         client.execute(() -> {
             if (client.interactionManager != null
                     && client.player != null
-                    && client.player.currentScreenHandler != null) {
+                    && client.player.currentScreenHandler != null
+                    && client.currentScreen != null) {
+
+                if (targetClick) {
+                    TransitionDetector.markTargetClicked();
+                }
 
                 client.interactionManager.clickSlot(
                         client.player.currentScreenHandler.syncId,
@@ -208,6 +295,7 @@ public class AnarchyExecutor {
                 );
             } else {
                 sendErrorMessage("Меню не открыто или синхронизация нарушена");
+                TransitionDetector.failAttempt();
             }
         });
     }

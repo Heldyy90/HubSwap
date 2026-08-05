@@ -1,10 +1,9 @@
 plugins {
-    id 'fabric-loom' version '1.5.7'
+    id 'fabric-loom' version '1.14.10'
     id 'maven-publish'
 }
 
 base {
-    // Итоговый файл: HubSwap-<version>.jar
     archivesName = project.archives_base_name
 }
 
@@ -23,17 +22,14 @@ dependencies {
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 }
 
-// Мод чисто клиентский. splitEnvironmentSourceSets() ломает компиляцию,
-// потому что client-классы (MinecraftClient/Screen и т.п.) отсутствуют в common source set.
-// Поэтому используем обычную схему без разделения.
-
 java {
-    toolchain.languageVersion = JavaLanguageVersion.of(17)
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
     withSourcesJar()
 }
 
 tasks.withType(JavaCompile).configureEach {
     it.options.encoding = "UTF-8"
+    it.options.release = 21
 }
 
 processResources {

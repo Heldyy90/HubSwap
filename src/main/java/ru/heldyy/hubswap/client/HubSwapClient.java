@@ -12,12 +12,14 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
+import net.minecraft.util.Identifier;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import ru.heldyy.hubswap.HubSwap;
 import ru.heldyy.hubswap.config.HotkeySlot;
 import ru.heldyy.hubswap.executor.AnarchyExecutor;
 import ru.heldyy.hubswap.gui.ConfigScreen;
+import ru.heldyy.hubswap.gui.AutoTuneManager;
 import ru.heldyy.hubswap.gui.MinecraftStatsHelper;
 import ru.heldyy.hubswap.gui.NotificationRenderer;
 import ru.heldyy.hubswap.gui.TransitionDetector;
@@ -30,6 +32,7 @@ import java.util.function.IntConsumer;
 
 public class HubSwapClient implements ClientModInitializer {
     private static KeyBinding configMenuKey;
+    private static final KeyBinding.Category HUBSWAP_CATEGORY = KeyBinding.Category.create(Identifier.of("hubswap", "main"));
     private static CommandDispatcher<FabricClientCommandSource> DISPATCHER;
 
     private static final Map<Integer, Boolean> hotkeyPressed = new HashMap<>();
@@ -61,7 +64,7 @@ public class HubSwapClient implements ClientModInitializer {
         configMenuKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.hubswap.config",
                 295,
-                "category.hubswap.main"
+                HUBSWAP_CATEGORY
         ));
     }
 
@@ -78,6 +81,8 @@ public class HubSwapClient implements ClientModInitializer {
         registerClassicCommand(HubSwap.getConfig().getClassicCommand());
         registerLightCommand(HubSwap.getConfig().getLightCommand());
         registerLight120Command(HubSwap.getConfig().getLight120Command());
+        registerPrimeCommand(HubSwap.getConfig().getPrimeCommand());
+        registerUtilityCommands();
     }
 
     private static void registerClassicCommand(String literal) {
@@ -85,11 +90,30 @@ public class HubSwapClient implements ClientModInitializer {
     }
 
     private static void registerLightCommand(String literal) {
-        registerWithRuAlias(literal, 1, 70, anarchy -> AnarchyExecutor.executeSequence("light", anarchy));
+        registerWithRuAlias(literal, 1, 74, anarchy -> AnarchyExecutor.executeSequence("light", anarchy));
     }
 
     private static void registerLight120Command(String literal) {
         registerWithRuAlias(literal, 1, 3, server -> AnarchyExecutor.executeSequence("light120", server));
+    }
+
+    private static void registerPrimeCommand(String literal) {
+        registerWithRuAlias(literal, 1, 9, server -> AnarchyExecutor.executeSequence("prime", server));
+    }
+
+    private static void registerUtilityCommands() {
+        registerSimpleLiteralIfAbsent("hshide", UpdateChecker::hideCurrentNotice);
+        registerSimpleLiteralIfAbsent("hsdownload", UpdateChecker::downloadCurrentNotice);
+        registerSimpleLiteralIfAbsent("hscheck", UpdateChecker::forceCheck);
+    }
+
+    private static void registerSimpleLiteralIfAbsent(String literal, Runnable action) {
+        if (DISPATCHER == null || DISPATCHER.getRoot().getChild(literal) != null) return;
+
+        DISPATCHER.register(ClientCommandManager.literal(literal).executes(ctx -> {
+            action.run();
+            return 1;
+        }));
     }
 
     private static void registerWithRuAlias(String literal, int min, int max, IntConsumer action) {
@@ -137,6 +161,7 @@ public class HubSwapClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             MinecraftStatsHelper.onClientTick();
             TransitionDetector.onClientTick(client);
+            UpdateChecker.onClientTick(client);
 
             if (configMenuKey.wasPressed()) {
                 client.setScreen(new ConfigScreen(null));
@@ -159,7 +184,7 @@ public class HubSwapClient implements ClientModInitializer {
                     if (!slot.isEnabled() || slot.getKeyCode() < 0) continue;
 
                     int code = slot.getKeyCode();
-                    boolean nowDown = InputUtil.isKeyPressed(client.getWindow().getHandle(), code);
+                    boolean nowDown = InputUtil.isKeyPressed(client.getWindow(), code);
                     boolean wasDown = hotkeyPressed.getOrDefault(code, false);
 
                     if (nowDown && !wasDown) {
@@ -175,11 +200,16 @@ public class HubSwapClient implements ClientModInitializer {
     private void registerLifecycleEvents() {
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> HubSwap.saveStats());
 
-        // Проверка новой версии после входа на сервер
+        
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
-            UpdateChecker.checkAfterJoin();
+            AutoTuneManager.onServerJoin();
+            UpdateChecker.onServerJoin();
         });
 
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> TransitionDetector.onDisconnect());
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            AutoTuneManager.onServerDisconnect();
+            TransitionDetector.onDisconnect();
+            UpdateChecker.onDisconnect();
+        });
     }
 }

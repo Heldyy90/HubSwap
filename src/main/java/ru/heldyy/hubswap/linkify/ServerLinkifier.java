@@ -16,7 +16,11 @@ public class ServerLinkifier {
 
     private static final Pattern PATTERN = Pattern.compile(
             "(?i)" +
-                    "(?<liteN>\\bLite-Anarchy-(?<liteNum>\\d+)\\b)" +
+                    "(?<primeDash>\\bPrime-(?<primeDashNum>[1-9])\\b)" +
+                    "|(?<primeN>\\bprime(?<primeNum>[1-9])\\b)" +
+                    "|(?<primeSpace>\\bPrime\\s+(?<primeSpaceNum>[1-9])\\b)" +
+                    "|(?<primeBare>\\bprime\\b)" +
+                    "|(?<liteN>\\bLite-Anarchy-(?<liteNum>\\d+)\\b)" +
                     "|(?<liteShort>\\bLite-(?<liteShortNum>\\d+)\\b)" +
                     "|(?<lite120>\\b1-20L-(?<lite120Num>[1-3])\\b)" +
                     "|(?<l2a3>\\bl2anarchy3\\b)" +
@@ -67,6 +71,11 @@ public class ServerLinkifier {
 
             String matchedText = segment.substring(m.start(), m.end());
 
+            boolean prime = m.group("primeDash") != null
+                    || m.group("primeN") != null
+                    || m.group("primeSpace") != null
+                    || m.group("primeBare") != null;
+
             boolean lite120 = m.group("lite120") != null
                     || m.group("l2a1") != null
                     || m.group("l2a2") != null
@@ -82,7 +91,15 @@ public class ServerLinkifier {
 
             int serverNum = 1;
 
-            if (m.group("l2a3") != null) {
+            if (m.group("primeDashNum") != null) {
+                serverNum = parseIntSafe(m.group("primeDashNum"), 1);
+            } else if (m.group("primeNum") != null) {
+                serverNum = parseIntSafe(m.group("primeNum"), 1);
+            } else if (m.group("primeSpaceNum") != null) {
+                serverNum = parseIntSafe(m.group("primeSpaceNum"), 1);
+            } else if (m.group("primeBare") != null) {
+                serverNum = 1;
+            } else if (m.group("l2a3") != null) {
                 serverNum = 3;
             } else if (m.group("l2a2") != null) {
                 serverNum = 2;
@@ -102,9 +119,11 @@ public class ServerLinkifier {
                 serverNum = parseIntSafe(m.group("clNum"), 1);
             }
 
-            String baseCmd = lite120
-                    ? cfg.getLight120Command()
-                    : (lite ? cfg.getLightCommand() : cfg.getClassicCommand());
+            String baseCmd = prime
+                    ? cfg.getPrimeCommand()
+                    : (lite120
+                        ? cfg.getLight120Command()
+                        : (lite ? cfg.getLightCommand() : cfg.getClassicCommand()));
 
             String command = "/" + baseCmd + " " + serverNum;
 
@@ -114,9 +133,8 @@ public class ServerLinkifier {
                     .withItalic(baseStyle.isItalic())
                     .withUnderline(true)
                     .withColor(linkColor)
-                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, command))
-                    .withHoverEvent(new HoverEvent(
-                            HoverEvent.Action.SHOW_TEXT,
+                    .withClickEvent(new ClickEvent.RunCommand(command))
+                    .withHoverEvent(new HoverEvent.ShowText(
                             Text.literal("Нажмите: ").formatted(Formatting.GRAY)
                                     .append(Text.literal(command).formatted(linkColor))
                     ));

@@ -13,7 +13,7 @@ import java.util.Locale;
 public class ChatScreenMixin {
 
     @ModifyVariable(
-            method = "sendMessage(Ljava/lang/String;Z)Z",
+            method = "sendMessage(Ljava/lang/String;Z)V",
             at = @At("HEAD"),
             argsOnly = true,
             require = 0
@@ -38,11 +38,13 @@ public class ChatScreenMixin {
         cmd = cmd
                 .replace('с', 'c')
                 .replace('т', 'n')
-                .replace('д', 'l');
+                .replace('д', 'l')
+                .replace('з', 'p');
 
         String classic = safeLower(cfg.getClassicCommand());
         String light = safeLower(cfg.getLightCommand());
         String light120 = safeLower(cfg.getLight120Command());
+        String prime = safeLower(cfg.getPrimeCommand());
 
         String mapped = null;
 
@@ -56,6 +58,10 @@ public class ChatScreenMixin {
 
         if (mapped == null && (cmd.equals(light120) || cmd.equals("ln120"))) {
             mapped = cfg.getLight120Command();
+        }
+
+        if (mapped == null && (cmd.equals(prime) || cmd.equals("pn"))) {
+            mapped = cfg.getPrimeCommand();
         }
 
         if (mapped == null) return chatText;

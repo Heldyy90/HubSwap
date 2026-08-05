@@ -29,6 +29,13 @@ public class HubSwap {
     private static ModConfig CONFIG = loadConfigInternal();
     private static StatsData STATS = loadStatsInternal();
 
+    static {
+        
+        
+        
+        saveConfig();
+    }
+
     public static ModConfig getConfig() {
         return CONFIG;
     }
@@ -60,6 +67,7 @@ public class HubSwap {
 
     public static void reloadConfig() {
         CONFIG = loadConfigInternal();
+        saveConfig();
     }
 
     private static ModConfig loadConfigInternal() {

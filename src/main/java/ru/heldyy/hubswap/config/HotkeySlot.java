@@ -51,6 +51,7 @@ public class HotkeySlot {
         String cmd = switch (mode) {
             case "classic" -> config.getClassicCommand();
             case "light120" -> config.getLight120Command();
+            case "prime" -> config.getPrimeCommand();
             default -> config.getLightCommand();
         };
         return cmd + " " + serverNumber;

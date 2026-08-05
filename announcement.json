@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "type": "announcement",
+  "id": "prime-release",
+  "revision": 1,
+  "title": "Новое в HubSwap",
+  "lines": [
+    "Добавлен режим Prime.",
+    "Для быстрого перехода используйте /pn 1-9."
+  ],
+  "version": "",
+  "downloadUrl": "",
+  "downloadButton": false
+}
