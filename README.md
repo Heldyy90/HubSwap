@@ -45,7 +45,7 @@
 | 🧩 Скачиваний `.jar` модов | **379** |
 | 🚀 Всего релизов | **7** |
 | 📦 Всего файлов в релизах | **11** |
-| 🆕 Последний опубликованный релиз | **[`v.1.0.6`](https://github.com/Heldyy90/HubSwap/releases/tag/v.1.0.6)** |
+| 🆕 Последний опубликованный релиз | **[`v.1.0.7`](https://github.com/Heldyy90/HubSwap/releases/tag/v.1.0.7)** |
 | 📅 Дата последнего релиза | **2026-07-14** |
 
 [➡️ Все релизы HubSwap](https://github.com/Heldyy90/HubSwap/releases)
