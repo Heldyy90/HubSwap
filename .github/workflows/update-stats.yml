@@ -11,35 +11,39 @@ permissions:
   contents: write
 
 jobs:
-  update:
+  update-stats:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/github-script@v7
+      - name: Update README statistics
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const owner = context.repo.owner
             const repo = context.repo.repo
 
-            const releases = await github.paginate(github.rest.repos.listReleases, {
-              owner,
-              repo,
-              per_page: 100
-            })
+            const releases = await github.paginate(
+              github.rest.repos.listReleases,
+              {
+                owner,
+                repo,
+                per_page: 100
+              }
+            )
 
-            const published = releases.filter(r => !r.draft)
-            const assets = published.flatMap(r => r.assets || [])
+            const published = releases.filter(release => !release.draft)
+            const assets = published.flatMap(release => release.assets || [])
 
             const totalDownloads = assets.reduce(
-              (sum, asset) => sum + (asset.download_count || 0),
+              (sum, asset) => sum + Number(asset.download_count || 0),
               0
             )
 
             const jarDownloads = assets
               .filter(asset => asset.name.toLowerCase().endsWith(".jar"))
               .reduce(
-                (sum, asset) => sum + (asset.download_count || 0),
+                (sum, asset) => sum + Number(asset.download_count || 0),
                 0
               )
 
@@ -48,11 +52,12 @@ jobs:
             let latestDate = "—"
 
             try {
-              const { data: latest } = await github.rest.repos.getLatestRelease({
+              const response = await github.rest.repos.getLatestRelease({
                 owner,
                 repo
               })
 
+              const latest = response.data
               latestTag = latest.tag_name
               latestUrl = latest.html_url
               latestDate = (
@@ -61,39 +66,68 @@ jobs:
                 ""
               ).slice(0, 10) || "—"
             } catch (error) {
-              if (error.status !== 404) throw error
+              if (error.status !== 404) {
+                throw error
+              }
             }
 
-            const block = `## 📊 Статистика проекта
+            const lines = [
+              "## 📊 Статистика проекта",
+              "",
+              "| Показатель | Значение |",
+              "|---|---:|",
+              `| 📥 Всего скачиваний файлов | **${totalDownloads}** |`,
+              `| 🧩 Скачиваний \`.jar\` модов | **${jarDownloads}** |`,
+              `| 🚀 Всего релизов | **${published.length}** |`,
+              `| 📦 Всего файлов в релизах | **${assets.length}** |`,
+              `| 🆕 Последний опубликованный релиз | **[\`${latestTag}\`](${latestUrl})** |`,
+              `| 📅 Дата последнего релиза | **${latestDate}** |`,
+              "",
+              `[➡️ Все релизы HubSwap](https://github.com/${owner}/${repo}/releases)`,
+              "",
+              "---"
+            ]
 
-            | Показатель | Значение |
-            |---|---:|
-            | 📥 Всего скачиваний файлов | **${totalDownloads}** |
-            | 🧩 Скачиваний \`.jar\` модов | **${jarDownloads}** |
-            | 🚀 Всего релизов | **${published.length}** |
-            | 📦 Всего файлов в релизах | **${assets.length}** |
-            | 🆕 Последний опубликованный релиз | **[\`${latestTag}\`](${latestUrl})** |
-            | 📅 Дата последнего релиза | **${latestDate}** |
+            const block = lines.join("\n")
 
-            [➡️ Все релизы HubSwap](https://github.com/${owner}/${repo}/releases)
-
-            ---`
-
-            const { data: file } = await github.rest.repos.getContent({
+            const fileResponse = await github.rest.repos.getContent({
               owner,
               repo,
               path: "README.md",
               ref: "main"
             })
 
-            const current = Buffer.from(file.content, "base64").toString("utf8")
-            const updated = current.replace(
-              /## 📊 Статистика проекта[\s\S]*?\n---/,
-              block
-            )
+            const file = fileResponse.data
+
+            if (Array.isArray(file) || !file.content || !file.sha) {
+              throw new Error("README.md not found")
+            }
+
+            const current = Buffer
+              .from(file.content, "base64")
+              .toString("utf8")
+
+            const start = current.indexOf("## 📊 Статистика проекта")
+
+            if (start === -1) {
+              throw new Error("Statistics section not found in README.md")
+            }
+
+            const separator = current.indexOf("\n---", start)
+
+            if (separator === -1) {
+              throw new Error("Statistics section end not found in README.md")
+            }
+
+            const end = separator + 4
+
+            const updated =
+              current.slice(0, start) +
+              block +
+              current.slice(end)
 
             if (updated === current) {
-              core.info("README statistics are already up to date")
+              core.info("Statistics are already up to date")
               return
             }
 
@@ -102,7 +136,11 @@ jobs:
               repo,
               path: "README.md",
               message: "Update project statistics",
-              content: Buffer.from(updated).toString("base64"),
+              content: Buffer.from(updated, "utf8").toString("base64"),
               sha: file.sha,
               branch: "main"
             })
+
+            core.info(
+              `Updated: downloads=${totalDownloads}, jar=${jarDownloads}, releases=${published.length}, assets=${assets.length}, latest=${latestTag}`
+            )
