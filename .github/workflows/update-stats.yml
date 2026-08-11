@@ -1,0 +1,146 @@
+name: Update README stats
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published, edited, deleted]
+  schedule:
+    - cron: "17 */6 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  update-stats:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Update README statistics
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner
+            const repo = context.repo.repo
+
+            const releases = await github.paginate(
+              github.rest.repos.listReleases,
+              {
+                owner,
+                repo,
+                per_page: 100
+              }
+            )
+
+            const published = releases.filter(release => !release.draft)
+            const assets = published.flatMap(release => release.assets || [])
+
+            const totalDownloads = assets.reduce(
+              (sum, asset) => sum + Number(asset.download_count || 0),
+              0
+            )
+
+            const jarDownloads = assets
+              .filter(asset => asset.name.toLowerCase().endsWith(".jar"))
+              .reduce(
+                (sum, asset) => sum + Number(asset.download_count || 0),
+                0
+              )
+
+            let latestTag = "—"
+            let latestUrl = `https://github.com/${owner}/${repo}/releases`
+            let latestDate = "—"
+
+            try {
+              const response = await github.rest.repos.getLatestRelease({
+                owner,
+                repo
+              })
+
+              const latest = response.data
+              latestTag = latest.tag_name
+              latestUrl = latest.html_url
+              latestDate = (
+                latest.published_at ||
+                latest.created_at ||
+                ""
+              ).slice(0, 10) || "—"
+            } catch (error) {
+              if (error.status !== 404) {
+                throw error
+              }
+            }
+
+            const lines = [
+              "## 📊 Статистика проекта",
+              "",
+              "| Показатель | Значение |",
+              "|---|---:|",
+              `| 📥 Всего скачиваний файлов | **${totalDownloads}** |`,
+              `| 🧩 Скачиваний \`.jar\` модов | **${jarDownloads}** |`,
+              `| 🚀 Всего релизов | **${published.length}** |`,
+              `| 📦 Всего файлов в релизах | **${assets.length}** |`,
+              `| 🆕 Последний опубликованный релиз | **[\`${latestTag}\`](${latestUrl})** |`,
+              `| 📅 Дата последнего релиза | **${latestDate}** |`,
+              "",
+              `[➡️ Все релизы HubSwap](https://github.com/${owner}/${repo}/releases)`,
+              "",
+              "---"
+            ]
+
+            const block = lines.join("\n")
+
+            const fileResponse = await github.rest.repos.getContent({
+              owner,
+              repo,
+              path: "README.md",
+              ref: "main"
+            })
+
+            const file = fileResponse.data
+
+            if (Array.isArray(file) || !file.content || !file.sha) {
+              throw new Error("README.md not found")
+            }
+
+            const current = Buffer
+              .from(file.content, "base64")
+              .toString("utf8")
+
+            const start = current.indexOf("## 📊 Статистика проекта")
+
+            if (start === -1) {
+              throw new Error("Statistics section not found in README.md")
+            }
+
+            const separator = current.indexOf("\n---", start)
+
+            if (separator === -1) {
+              throw new Error("Statistics section end not found in README.md")
+            }
+
+            const end = separator + 4
+
+            const updated =
+              current.slice(0, start) +
+              block +
+              current.slice(end)
+
+            if (updated === current) {
+              core.info("Statistics are already up to date")
+              return
+            }
+
+            await github.rest.repos.createOrUpdateFileContents({
+              owner,
+              repo,
+              path: "README.md",
+              message: "Update project statistics",
+              content: Buffer.from(updated, "utf8").toString("base64"),
+              sha: file.sha,
+              branch: "main"
+            })
+
+            core.info(
+              `Updated: downloads=${totalDownloads}, jar=${jarDownloads}, releases=${published.length}, assets=${assets.length}, latest=${latestTag}`
+            )
