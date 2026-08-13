@@ -2,7 +2,6 @@ package ru.heldyy.hubswap.gui;
 
 import net.minecraft.client.MinecraftClient;
 
-import java.lang.reflect.Field;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
@@ -94,24 +93,8 @@ public final class MinecraftStatsHelper {
 
         try {
             int fps = client.getCurrentFps();
-            if (fps > 0) {
-                return fps;
-            }
+            return fps > 0 ? fps : -1;
         } catch (Exception ignored) {
-        }
-
-        try {
-            Field field = MinecraftClient.class.getDeclaredField("fpsDebugString");
-            field.setAccessible(true);
-            Object raw = field.get(client);
-            if (!(raw instanceof String fpsString) || fpsString.isEmpty()) {
-                return -1;
-            }
-
-            int space = fpsString.indexOf(' ');
-            String value = space > 0 ? fpsString.substring(0, space) : fpsString;
-            return Integer.parseInt(value.trim());
-        } catch (Exception e) {
             return -1;
         }
     }

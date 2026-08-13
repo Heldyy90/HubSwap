@@ -22,3 +22,6 @@ out/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Remote announcement signing key (keep outside repository)
+hubswap-announcement-private*.pem

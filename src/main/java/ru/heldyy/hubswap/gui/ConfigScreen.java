@@ -36,8 +36,10 @@ public class ConfigScreen extends Screen {
     private TextFieldWidget primeCommandField;
 
     private boolean notificationsEnabledTmp;
+    private boolean remoteNoticesEnabledTmp;
     private boolean smartAutoTuneEnabledTmp;
     private ButtonWidget notificationsToggleButton;
+    private ButtonWidget remoteNoticesToggleButton;
     private ButtonWidget smartAutoTuneToggleButton;
 
     private ModConfig.ColorTheme currentTheme;
@@ -69,6 +71,7 @@ public class ConfigScreen extends Screen {
         this.currentTheme = config.getColorTheme();
         this.currentLinkColor = config.getLinkColor();
         this.notificationsEnabledTmp = config.isNotificationsEnabled();
+        this.remoteNoticesEnabledTmp = config.isRemoteNoticesEnabled();
         this.smartAutoTuneEnabledTmp = config.isSmartAutoTuneEnabled();
         this.hotkeyTmp = new ArrayList<>();
         for (HotkeySlot s : config.getHotkeySlots())
@@ -157,6 +160,9 @@ public class ConfigScreen extends Screen {
         linkColorToggleButton = addDrawableChild(ButtonWidget.builder(getLinkColorButtonText(),
                         btn -> { currentLinkColor = nextLinkColor(currentLinkColor); btn.setMessage(getLinkColorButtonText()); })
                 .dimensions(rx, contentY + sp * 3 + 10, colW, fh).build());
+        remoteNoticesToggleButton = addDrawableChild(ButtonWidget.builder(getRemoteNoticesButtonText(),
+                        btn -> { remoteNoticesEnabledTmp = !remoteNoticesEnabledTmp; btn.setMessage(getRemoteNoticesButtonText()); })
+                .dimensions(rx, contentY + sp * 4 + 10, colW, fh).build());
     }
 
     private TextFieldWidget addField(int x, int y, int w, int h, String text, int maxLen) {
@@ -295,9 +301,10 @@ public class ConfigScreen extends Screen {
         for (int i = 0; i < lLabels.length; i++)
             renderLabel(context, lx, contentY + sp * i + 10 - 22, colW, lLabels[i], lHints[i], themeRgb);
 
-        String[] rLabels = { "🔔 Уведомления", "🧠 Умный автоподбор", "🎨 Цветовая тема", "🔗 Цвет серверов" };
+        String[] rLabels = { "🔔 Уведомления", "🧠 Умный автоподбор", "🎨 Цветовая тема", "🔗 Цвет серверов", "🌐 Удалённые объявления" };
         String[] rHints  = { "Показывать уведомления о переходе", "Автоматически подбирает задержки",
-                "Изменяет цвет элементов интерфейса", "Цвет кликабельных серверов в чате" };
+                "Изменяет цвет элементов интерфейса", "Цвет кликабельных серверов в чате",
+                "Проверка обновлений и объявлений через GitHub" };
         for (int i = 0; i < rLabels.length; i++)
             renderLabel(context, rx, contentY + sp * i + 10 - 22, colW, rLabels[i], rHints[i], themeRgb);
     }
@@ -480,6 +487,7 @@ public class ConfigScreen extends Screen {
                 config.setDelays(cd, ck);
                 config.setCommands(classicCommandField.getText(), lightCommandField.getText(), light120CommandField.getText(), primeCommandField.getText());
                 config.setNotificationsEnabled(notificationsEnabledTmp);
+                config.setRemoteNoticesEnabled(remoteNoticesEnabledTmp);
                 config.setSmartAutoTuneEnabled(smartAutoTuneEnabledTmp);
             } catch (NumberFormatException e) {
                 sendError("Введите числовые значения для задержек");
@@ -588,6 +596,12 @@ public class ConfigScreen extends Screen {
         return notificationsEnabledTmp
                 ? Text.literal("🔔 Уведомления: ВКЛ").formatted(Formatting.GREEN)
                 : Text.literal("🔕 Уведомления: ВЫКЛ").formatted(Formatting.RED);
+    }
+
+    private Text getRemoteNoticesButtonText() {
+        return remoteNoticesEnabledTmp
+                ? Text.literal("🌐 Объявления: ВКЛ").formatted(Formatting.GREEN)
+                : Text.literal("🌐 Объявления: ВЫКЛ").formatted(Formatting.RED);
     }
 
     private Text getSmartAutoTuneButtonText() {

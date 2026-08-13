@@ -34,6 +34,9 @@ public class ModConfig {
     private boolean notificationsEnabled = true;
 
     @Expose
+    private boolean remoteNoticesEnabled = true;
+
+    @Expose
     private boolean smartAutoTuneEnabled = true;
 
     @Expose
@@ -108,6 +111,10 @@ public class ModConfig {
         return notificationsEnabled;
     }
 
+    public boolean isRemoteNoticesEnabled() {
+        return remoteNoticesEnabled;
+    }
+
     public boolean isSmartAutoTuneEnabled() {
         return smartAutoTuneEnabled;
     }
@@ -174,6 +181,10 @@ public class ModConfig {
 
     public void setNotificationsEnabled(boolean enabled) {
         this.notificationsEnabled = enabled;
+    }
+
+    public void setRemoteNoticesEnabled(boolean enabled) {
+        this.remoteNoticesEnabled = enabled;
     }
 
     public void setSmartAutoTuneEnabled(boolean enabled) {

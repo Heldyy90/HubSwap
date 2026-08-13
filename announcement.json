@@ -1,16 +1,16 @@
 {
   "enabled": true,
   "type": "update",
-  "id": "hubswap-1.0.7-mc1.21.11",
-  "revision": 4,
-  "title": "HubSwap 1.0.7 — обновление",
+  "id": "hubswap-1.0.8-mc1.21.11",
+  "revision": 1,
+  "title": "HubSwap 1.0.8 — безопасное обновление",
   "lines": [
-    "Мод полностью переписан и адаптирован под Minecraft 1.21.11 Fabric.",
-    "Добавлен режим Prime и быстрый переход: /pn 1-9.",
-    "Добавлены кликабельные Prime-сервера.",
-    "Сохранены хоткеи, статистика и умный автоподбор задержек."
+    "Защищён канал удалённых объявлений с Ed25519-подписью.",
+    "Ссылки загрузки ограничены безопасными HTTPS-адресами GitHub.",
+    "Сетевые проверки выполняются реже и могут быть отключены в настройках.",
+    "Исправлена двойная обработка чата и очередь повторных переходов."
   ],
-  "version": "1.0.7",
-  "downloadUrl": "https://github.com/HolyWorldWEB/HubSwap/releases/tag/v1.0.7",
+  "version": "1.0.8",
+  "downloadUrl": "https://github.com/HolyWorldWEB/HubSwap/releases",
   "downloadButton": true
 }

@@ -11,10 +11,12 @@ import ru.heldyy.hubswap.gui.TransitionMode;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class AnarchyExecutor {
     private static final MinecraftClient client = MinecraftClient.getInstance();
     private static final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private static final AtomicBoolean SEQUENCE_RUNNING = new AtomicBoolean(false);
 
     public static void executeSequence(String mode, int anarchyNumber) {
         ModConfig config = HubSwap.getConfig();
@@ -23,11 +25,17 @@ public class AnarchyExecutor {
             return;
         }
 
+        if (!SEQUENCE_RUNNING.compareAndSet(false, true)) {
+            sendErrorMessage("Переход уже выполняется");
+            return;
+        }
+
         HubSwap.getStats().recordSwitch(mode, anarchyNumber);
         HubSwap.saveStats();
 
-        executor.execute(() -> {
-            try {
+        try {
+            executor.execute(() -> {
+                try {
                 if ("classic".equals(mode)) {
                     if (anarchyNumber < 1 || anarchyNumber > 5) {
                         sendErrorMessage("Недопустимый номер анархии: " + anarchyNumber);
@@ -153,13 +161,19 @@ public class AnarchyExecutor {
                 }
 
                 sendErrorMessage("Неизвестный режим: " + mode);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                sendErrorMessage("Ошибка выполнения последовательности");
-            } catch (Exception e) {
-                sendErrorMessage("Сбой автоперехода: " + e.getClass().getSimpleName());
-            }
-        });
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    sendErrorMessage("Ошибка выполнения последовательности");
+                } catch (Exception e) {
+                    sendErrorMessage("Сбой автоперехода: " + e.getClass().getSimpleName());
+                } finally {
+                    SEQUENCE_RUNNING.set(false);
+                }
+            });
+        } catch (RuntimeException e) {
+            SEQUENCE_RUNNING.set(false);
+            throw e;
+        }
     }
 
 

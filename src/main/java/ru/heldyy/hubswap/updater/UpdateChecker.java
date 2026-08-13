@@ -14,14 +14,19 @@ import ru.heldyy.hubswap.HubSwap;
 import ru.heldyy.hubswap.gui.TransitionDetector;
 
 import java.awt.Desktop;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyFactory;
 import java.security.MessageDigest;
+import java.security.PublicKey;
+import java.security.Signature;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -36,9 +41,26 @@ import java.util.regex.Pattern;
 public final class UpdateChecker {
     private static final String MOD_ID = "hubswap";
     private static final String REMOTE_NOTICE_URL =
-            "https://raw.githubusercontent.com/Heldyy90/HubSwap/main/announcement.json";
-    private static final long CHECK_INTERVAL_MS = 10_000L;
+            "https://raw.githubusercontent.com/HolyWorldWEB/HubSwap/main/announcement.json";
+    private static final String REMOTE_NOTICE_SIGNATURE_URL = REMOTE_NOTICE_URL + ".sig";
+
+    // X.509 SubjectPublicKeyInfo, Ed25519. Private key is intentionally NOT shipped with the mod.
+    private static final String NOTICE_PUBLIC_KEY_X509_B64 =
+            "MCowBQYDK2VwAyEAA/cE2RYv+6fJsoYaHYVVCRqsNXaN0i8bF5MGtI4Q2F8=";
+
+    private static final long CHECK_INTERVAL_MS = 300_000L;
+    private static final long FIRST_CHECK_DELAY_MS = 30_000L;
+    private static final int MAX_NOTICE_BYTES = 64 * 1024;
+    private static final int MAX_SIGNATURE_BYTES = 1024;
     private static final Pattern VERSION_PATTERN = Pattern.compile("(\\d+)(?:\\.(\\d+))?(?:\\.(\\d+))?");
+
+    private static final Set<String> ALLOWED_DOWNLOAD_HOSTS = Set.of(
+            "github.com",
+            "raw.githubusercontent.com",
+            "objects.githubusercontent.com",
+            "github-releases.githubusercontent.com",
+            "release-assets.githubusercontent.com"
+    );
 
     private static final ExecutorService NETWORK = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "HubSwap Remote Notice");
@@ -49,6 +71,7 @@ public final class UpdateChecker {
     private static final Set<String> SESSION_SUPPRESSED = Collections.synchronizedSet(new HashSet<>());
 
     private static volatile boolean wasInHub = false;
+    private static volatile long hubEnteredAt = 0L;
     private static volatile long lastCheckAt = 0L;
     private static volatile String displayedFingerprintThisHub = "";
     private static volatile RemoteNotice currentNotice = null;
@@ -57,26 +80,35 @@ public final class UpdateChecker {
     }
 
     public static void onServerJoin() {
-        wasInHub = false;
-        lastCheckAt = 0L;
-        displayedFingerprintThisHub = "";
-        currentNotice = null;
+        resetSessionState();
     }
 
     public static void onDisconnect() {
-        wasInHub = false;
-        lastCheckAt = 0L;
-        displayedFingerprintThisHub = "";
-        currentNotice = null;
+        resetSessionState();
     }
 
     public static void checkAfterJoin() {
         onServerJoin();
     }
 
+    private static void resetSessionState() {
+        wasInHub = false;
+        hubEnteredAt = 0L;
+        lastCheckAt = 0L;
+        displayedFingerprintThisHub = "";
+        currentNotice = null;
+    }
+
     public static void onClientTick(MinecraftClient client) {
         if (client == null || client.player == null) {
             wasInHub = false;
+            hubEnteredAt = 0L;
+            return;
+        }
+
+        if (!HubSwap.getConfig().isRemoteNoticesEnabled()) {
+            wasInHub = false;
+            hubEnteredAt = 0L;
             return;
         }
 
@@ -85,6 +117,7 @@ public final class UpdateChecker {
 
         if (!inHub) {
             wasInHub = false;
+            hubEnteredAt = 0L;
             displayedFingerprintThisHub = "";
             return;
         }
@@ -93,8 +126,16 @@ public final class UpdateChecker {
         wasInHub = true;
 
         if (justEnteredHub) {
+            hubEnteredAt = now;
+            lastCheckAt = 0L;
             displayedFingerprintThisHub = "";
-            requestCheck(true);
+            return;
+        }
+
+        if (lastCheckAt == 0L) {
+            if (now - hubEnteredAt >= FIRST_CHECK_DELAY_MS) {
+                requestCheck(true);
+            }
             return;
         }
 
@@ -106,6 +147,11 @@ public final class UpdateChecker {
     public static void forceCheck() {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.player == null) return;
+
+        if (!HubSwap.getConfig().isRemoteNoticesEnabled()) {
+            sendInfo("Удалённые объявления отключены в настройках.");
+            return;
+        }
 
         if (!TransitionDetector.isInHub(client)) {
             sendInfo("Проверка объявления выполняется в Hub.");
@@ -133,6 +179,11 @@ public final class UpdateChecker {
         RemoteNotice notice = currentNotice;
         if (notice == null || notice.downloadUrl().isBlank()) {
             sendInfo("Ссылка на загрузку недоступна.");
+            return;
+        }
+
+        if (!isSafeDownloadUrl(notice.downloadUrl())) {
+            sendInfo("Ссылка загрузки заблокирована: недопустимый URL.");
             return;
         }
 
@@ -173,7 +224,9 @@ public final class UpdateChecker {
     }
 
     private static void handleRemoteNotice(MinecraftClient client, RemoteNotice notice) {
-        if (client.player == null || !TransitionDetector.isInHub(client)) {
+        if (client.player == null
+                || !HubSwap.getConfig().isRemoteNoticesEnabled()
+                || !TransitionDetector.isInHub(client)) {
             return;
         }
 
@@ -205,20 +258,44 @@ public final class UpdateChecker {
     }
 
     private static RemoteNotice fetchRemoteNotice() throws Exception {
-        String raw = request(REMOTE_NOTICE_URL + "?hs=" + System.currentTimeMillis());
-        if (raw == null || raw.isBlank()) return null;
+        byte[] body = requestBytes(REMOTE_NOTICE_URL, MAX_NOTICE_BYTES, "application/json,text/plain,*/*");
+        if (body == null || body.length == 0) return null;
 
-        JsonObject json = JsonParser.parseString(raw).getAsJsonObject();
+        byte[] signatureBody = requestBytes(
+                REMOTE_NOTICE_SIGNATURE_URL,
+                MAX_SIGNATURE_BYTES,
+                "text/plain,*/*"
+        );
+        if (signatureBody == null || signatureBody.length == 0) return null;
+
+        String signatureB64 = new String(signatureBody, StandardCharsets.US_ASCII).trim();
+        if (!verifySignature(body, signatureB64)) {
+            return null; // fail closed: unsigned or modified notices are never trusted
+        }
+
+        JsonObject json = JsonParser.parseString(new String(body, StandardCharsets.UTF_8)).getAsJsonObject();
         boolean enabled = getBoolean(json, "enabled", true);
         String type = getString(json, "type", "announcement").toLowerCase(Locale.ROOT);
-        String id = getString(json, "id", "notice");
-        int revision = getInt(json, "revision", 1);
-        String title = getString(json, "title", type.equals("update") ? "Доступно обновление HubSwap" : "Объявление HubSwap");
-        String version = getString(json, "version", "");
-        String downloadUrl = getString(json, "downloadUrl", "");
+        if (!type.equals("announcement") && !type.equals("update")) {
+            type = "announcement";
+        }
+
+        String id = limit(getString(json, "id", "notice"), 64);
+        int revision = Math.max(0, Math.min(1_000_000, getInt(json, "revision", 1)));
+        String title = limit(
+                getString(json, "title", type.equals("update") ? "Доступно обновление HubSwap" : "Объявление HubSwap"),
+                64
+        );
+        String version = limit(getString(json, "version", ""), 16);
+        String downloadUrl = getString(json, "downloadUrl", "").trim();
+        if (!isSafeDownloadUrl(downloadUrl)) {
+            downloadUrl = "";
+        }
+
         boolean downloadButton = json.has("downloadButton")
                 ? getBoolean(json, "downloadButton", false)
                 : type.equals("update") && !downloadUrl.isBlank();
+        downloadButton = downloadButton && !downloadUrl.isBlank();
 
         List<String> lines = readLines(json);
         if (lines.isEmpty() && type.equals("update") && !version.isBlank()) {
@@ -241,6 +318,23 @@ public final class UpdateChecker {
                 downloadButton,
                 fingerprint
         );
+    }
+
+    private static boolean verifySignature(byte[] body, String signatureB64) {
+        if (body == null || signatureB64 == null || signatureB64.isBlank()) return false;
+        try {
+            byte[] publicKeyBytes = Base64.getDecoder().decode(NOTICE_PUBLIC_KEY_X509_B64);
+            PublicKey publicKey = KeyFactory.getInstance("Ed25519")
+                    .generatePublic(new X509EncodedKeySpec(publicKeyBytes));
+            byte[] signatureBytes = Base64.getDecoder().decode(signatureB64.replaceAll("\\s+", ""));
+
+            Signature verifier = Signature.getInstance("Ed25519");
+            verifier.initVerify(publicKey);
+            verifier.update(body);
+            return verifier.verify(signatureBytes);
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     private static List<String> readLines(JsonObject json) {
@@ -270,8 +364,12 @@ public final class UpdateChecker {
         if (raw == null) return;
         String line = raw.trim();
         if (line.isEmpty()) return;
-        if (line.length() > 220) line = line.substring(0, 220);
-        result.add(line);
+        result.add(limit(line, 220));
+    }
+
+    private static String limit(String value, int maxLength) {
+        if (value == null) return "";
+        return value.length() <= maxLength ? value : value.substring(0, maxLength);
     }
 
     private static void sendRemoteNotice(RemoteNotice notice) {
@@ -298,7 +396,7 @@ public final class UpdateChecker {
         }
 
         Text buttons = Text.empty();
-        if (notice.downloadButton() && !notice.downloadUrl().isBlank()) {
+        if (notice.downloadButton() && isSafeDownloadUrl(notice.downloadUrl())) {
             buttons = buttons.copy().append(Text.literal("[СКАЧАТЬ]")
                     .styled(style -> style
                             .withColor(Formatting.AQUA)
@@ -336,50 +434,76 @@ public final class UpdateChecker {
         });
     }
 
+    private static boolean isSafeDownloadUrl(String url) {
+        if (url == null || url.isBlank()) return false;
+        try {
+            URI uri = URI.create(url.trim());
+            if (!"https".equalsIgnoreCase(uri.getScheme())) return false;
+            if (uri.getUserInfo() != null) return false;
+            if (uri.getPort() != -1 && uri.getPort() != 443) return false;
 
-    private static void openInBrowser(URI uri) throws Exception {
-        if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
-            Desktop.getDesktop().browse(uri);
-            return;
-        }
-
-        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-        if (os.contains("win")) {
-            new ProcessBuilder("rundll32", "url.dll,FileProtocolHandler", uri.toString()).start();
-        } else if (os.contains("mac")) {
-            new ProcessBuilder("open", uri.toString()).start();
-        } else {
-            new ProcessBuilder("xdg-open", uri.toString()).start();
+            String host = uri.getHost();
+            if (host == null) return false;
+            return ALLOWED_DOWNLOAD_HOSTS.contains(host.toLowerCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            return false;
         }
     }
 
-    private static String request(String apiUrl) throws Exception {
-        URL url = new URL(apiUrl);
+    private static void openInBrowser(URI uri) throws Exception {
+        if (uri == null || !isSafeDownloadUrl(uri.toString())) {
+            throw new IllegalArgumentException("Unsafe download URI");
+        }
+
+        if (!Desktop.isDesktopSupported() || !Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+            throw new UnsupportedOperationException("Desktop browser integration is unavailable");
+        }
+
+        Desktop.getDesktop().browse(uri);
+    }
+
+    private static byte[] requestBytes(String apiUrl, int maxBodyBytes, String accept) throws Exception {
+        URI uri = URI.create(apiUrl);
+        if (!"https".equalsIgnoreCase(uri.getScheme())
+                || !"raw.githubusercontent.com".equalsIgnoreCase(uri.getHost())) {
+            throw new IllegalArgumentException("Unexpected remote notice endpoint");
+        }
+
+        URL url = uri.toURL();
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setUseCaches(false);
+        connection.setInstanceFollowRedirects(false);
         connection.setRequestMethod("GET");
         connection.setConnectTimeout(4000);
         connection.setReadTimeout(4000);
-        connection.setRequestProperty("User-Agent", "HubSwap/1.0.7 (+https://github.com/Heldyy90/HubSwap)");
-        connection.setRequestProperty("Accept", "application/json,text/plain,*/*");
-        connection.setRequestProperty("Cache-Control", "no-cache, no-store, max-age=0");
-        connection.setRequestProperty("Pragma", "no-cache");
+        connection.setRequestProperty("User-Agent", "HubSwap (+https://github.com/HolyWorldWEB/HubSwap)");
+        connection.setRequestProperty("Accept", accept);
+        connection.setRequestProperty("Cache-Control", "no-cache");
 
-        int code = connection.getResponseCode();
-        if (code != 200) return null;
+        try {
+            int code = connection.getResponseCode();
+            if (code != HttpURLConnection.HTTP_OK) return null;
 
-        StringBuilder response = new StringBuilder();
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                response.append(line).append('\n');
+            long declaredLength = connection.getContentLengthLong();
+            if (declaredLength > maxBodyBytes) return null;
+
+            try (InputStream input = connection.getInputStream();
+                 ByteArrayOutputStream output = new ByteArrayOutputStream(Math.min(maxBodyBytes, 8192))) {
+                byte[] buffer = new byte[4096];
+                int read;
+                int total = 0;
+                while ((read = input.read(buffer)) != -1) {
+                    total += read;
+                    if (total > maxBodyBytes) {
+                        return null;
+                    }
+                    output.write(buffer, 0, read);
+                }
+                return output.toByteArray();
             }
         } finally {
             connection.disconnect();
         }
-
-        return response.toString();
     }
 
     private static String getCurrentVersion() {
