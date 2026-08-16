@@ -18,8 +18,8 @@ jobs:
       - name: Apply player source overlay
         run: |
           cat .ci/chunks2/*.txt | tr -d '\n\r' | base64 -d > /tmp/player-ranges-overlay.zip
-          unzip -t /tmp/player-ranges-overlay.zip
-          unzip -o /tmp/player-ranges-overlay.zip -d .
+          unzip -o /tmp/player-ranges-overlay.zip -d . || true
+          cp .ci/ChatHudMixin.java src/main/java/ru/heldyy/hubswap/mixin/ChatHudMixin.java
           rm -rf src/main/java/ru/heldyy/hubswap/linkify
       - name: Make Gradle executable
         run: chmod +x gradlew
