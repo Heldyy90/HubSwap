@@ -10,45 +10,49 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
 import java.io.BufferedReader;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 
 public class UpdateChecker {
     private static final String MOD_ID = "hubswap";
 
     private static final String GITHUB_API =
-            "https://api.github.com/repos/Heldyy90/HubSwap/releases/latest";
+            "https://api.github.com/repos/HolyWorldWEB/HubSwap/releases/latest";
 
     private static final String REPO_URL =
-            "https://github.com/Heldyy90/HubSwap/releases/latest";
+            "https://github.com/HolyWorldWEB/HubSwap/releases/latest";
 
     private static boolean checked = false;
 
-    public static void checkAfterJoin() {
+    public static synchronized void checkAfterJoin() {
         if (checked) return;
         checked = true;
 
-        new Thread(() -> {
+        Thread thread = new Thread(() -> {
             try {
                 Thread.sleep(3500);
 
-                String currentVersion = getCurrentVersion();
+                String currentVersion = normalizeVersion(getCurrentVersion());
                 ReleaseInfo latest = getLatestRelease();
-
                 if (latest == null || latest.tagName == null) return;
 
                 String latestVersion = normalizeVersion(latest.tagName);
-                String current = normalizeVersion(currentVersion);
-
-                if (isNewerVersion(latestVersion, current)) {
-                    sendUpdateMessage(latest.tagName, latest.htmlUrl);
+                if (isNewerVersion(latestVersion, currentVersion)) {
+                    sendUpdateMessage(latest.tagName, safeReleaseUrl(latest.htmlUrl));
                 }
-
-            } catch (Exception ignored) {
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (Exception e) {
+                System.err.println("[HubSwap] Update check failed: " + e.getMessage());
             }
-        }, "HubSwap Update Checker").start();
+        }, "HubSwap Update Checker");
+        thread.setDaemon(true);
+        thread.start();
     }
 
     private static String getCurrentVersion() {
@@ -62,33 +66,49 @@ public class UpdateChecker {
         URL url = new URL(GITHUB_API);
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 
-        connection.setRequestMethod("GET");
-        connection.setConnectTimeout(5000);
-        connection.setReadTimeout(5000);
-        connection.setRequestProperty("User-Agent", "HubSwap-UpdateChecker");
+        try {
+            connection.setRequestMethod("GET");
+            connection.setConnectTimeout(5000);
+            connection.setReadTimeout(5000);
+            connection.setRequestProperty("User-Agent", "HubSwap-UpdateChecker");
+            connection.setRequestProperty("Accept", "application/vnd.github+json");
 
-        if (connection.getResponseCode() != 200) {
-            return null;
-        }
-
-        StringBuilder response = new StringBuilder();
-
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8)
-        )) {
-            String line;
-
-            while ((line = reader.readLine()) != null) {
-                response.append(line);
+            int responseCode = connection.getResponseCode();
+            if (responseCode != HttpURLConnection.HTTP_OK) {
+                consumeQuietly(connection.getErrorStream());
+                return null;
             }
+
+            StringBuilder response = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8)
+            )) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    response.append(line);
+                }
+            }
+
+            JsonObject json = JsonParser.parseString(response.toString()).getAsJsonObject();
+            String tagName = json.has("tag_name") && !json.get("tag_name").isJsonNull()
+                    ? json.get("tag_name").getAsString() : null;
+            String htmlUrl = json.has("html_url") && !json.get("html_url").isJsonNull()
+                    ? json.get("html_url").getAsString() : REPO_URL;
+
+            return new ReleaseInfo(tagName, safeReleaseUrl(htmlUrl));
+        } finally {
+            connection.disconnect();
         }
+    }
 
-        JsonObject json = JsonParser.parseString(response.toString()).getAsJsonObject();
-
-        String tagName = json.has("tag_name") ? json.get("tag_name").getAsString() : null;
-        String htmlUrl = json.has("html_url") ? json.get("html_url").getAsString() : REPO_URL;
-
-        return new ReleaseInfo(tagName, htmlUrl);
+    private static void consumeQuietly(InputStream stream) {
+        if (stream == null) return;
+        try (InputStream ignored = stream) {
+            byte[] buffer = new byte[1024];
+            while (ignored.read(buffer) != -1) {
+                // consume response body
+            }
+        } catch (Exception ignored) { }
     }
 
     private static void sendUpdateMessage(String latestVersion, String url) {
@@ -109,7 +129,7 @@ public class UpdateChecker {
                     .styled(style -> style
                             .withColor(Formatting.AQUA)
                             .withUnderline(true)
-                            .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url))
+                            .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, safeReleaseUrl(url)))
                             .withHoverEvent(new HoverEvent(
                                     HoverEvent.Action.SHOW_TEXT,
                                     Text.literal("Открыть страницу релиза HubSwap")
@@ -120,17 +140,43 @@ public class UpdateChecker {
         });
     }
 
+    private static String safeReleaseUrl(String value) {
+        if (value == null || value.isBlank()) return REPO_URL;
+        try {
+            URI uri = URI.create(value.trim());
+            if (!"https".equalsIgnoreCase(uri.getScheme())) return REPO_URL;
+            String host = uri.getHost();
+            if (host == null || !host.equalsIgnoreCase("github.com")) return REPO_URL;
+            String path = uri.getPath();
+            if (path == null || !path.startsWith("/HolyWorldWEB/HubSwap/")) return REPO_URL;
+            return uri.toString();
+        } catch (IllegalArgumentException e) {
+            return REPO_URL;
+        }
+    }
+
     private static String normalizeVersion(String version) {
         if (version == null) return "0.0.0";
 
-        String clean = version.toLowerCase()
-                .replace("version", "")
+        String clean = version.trim().toLowerCase(Locale.ROOT).replace("version", "");
+        int metadata = firstMetadataSeparator(clean);
+        if (metadata >= 0) clean = clean.substring(0, metadata);
+
+        clean = clean
                 .replaceAll("[^0-9.]", "")
                 .replaceAll("^\\.+", "")
                 .replaceAll("\\.+$", "")
                 .trim();
 
         return clean.isEmpty() ? "0.0.0" : clean;
+    }
+
+    private static int firstMetadataSeparator(String value) {
+        int plus = value.indexOf('+');
+        int dash = value.indexOf('-');
+        if (plus < 0) return dash;
+        if (dash < 0) return plus;
+        return Math.min(plus, dash);
     }
 
     private static boolean isNewerVersion(String latest, String current) {
@@ -141,33 +187,21 @@ public class UpdateChecker {
             if (latestParts[i] > currentParts[i]) return true;
             if (latestParts[i] < currentParts[i]) return false;
         }
-
         return false;
     }
 
-    private static int[] parseVersion(String version) {
+    private static int[] parseVersion(String normalizedVersion) {
         int[] result = new int[]{0, 0, 0};
+        if (normalizedVersion == null) return result;
 
-        try {
-            String cleanVersion = normalizeVersion(version);
-            String[] parts = cleanVersion.split("\\.");
-
-            int index = 0;
-
-            for (String part : parts) {
-                if (index >= 3) break;
-                if (part == null || part.isBlank()) continue;
-
-                String clean = part.replaceAll("[^0-9]", "");
-
-                if (!clean.isEmpty()) {
-                    result[index] = Integer.parseInt(clean);
-                    index++;
-                }
-            }
-        } catch (Exception ignored) {
+        String[] parts = normalizedVersion.split("\\.", -1);
+        for (int i = 0; i < result.length && i < parts.length; i++) {
+            String part = parts[i];
+            if (part == null || part.isBlank()) continue;
+            try {
+                result[i] = Integer.parseInt(part);
+            } catch (NumberFormatException ignored) { }
         }
-
         return result;
     }
 
