@@ -4,12 +4,13 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ingame.GenericContainerScreen;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.LoreComponent;
+import net.minecraft.component.type.NbtComponent;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
 import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.text.Text;
-import net.minecraft.text.Text.Serializer;
 import net.minecraft.world.World;
 import ru.heldyy.hubswap.HubSwap;
 import ru.heldyy.hubswap.config.ModConfig;
@@ -128,8 +129,8 @@ public class AnarchyExecutor {
                 for (int i = 0; i < containerSlots; i++) {
                     ItemStack stack = handler.getSlot(i).getStack();
                     if (!stack.isEmpty()) {
-                        String typeVal = readNbt(stack, "advancedserverselecter:server-type");
-                        String serverVal = readNbt(stack, "advancedserverselecter:server");
+                        String typeVal = readCustomData(stack, "advancedserverselecter:server-type");
+                        String serverVal = readCustomData(stack, "advancedserverselecter:server");
                         if (categoryKey.equals(typeVal)) foundType = true;
                         if (serverKey.equals(serverVal)) foundServer = true;
                     }
@@ -219,20 +220,16 @@ public class AnarchyExecutor {
         }
         client.getNetworkHandler().sendChatCommand(menuCmd);
 
-        if ("lite".equals(mode)) {
-            state = State.WAITING_MENU1;
-        } else {
-            state = State.WAITING_MENU;
-        }
+        state = "lite".equals(mode) ? State.WAITING_MENU1 : State.WAITING_MENU;
         ticks = 0;
     }
 
     private static void scanMenu1() {
-        scanMenuByNbt("advancedserverselecter:server-type", categoryKey, true);
+        scanMenuByCustomData("advancedserverselecter:server-type", categoryKey, true);
     }
 
     private static void scanMenu2() {
-        scanMenuByNbt("advancedserverselecter:server", serverKey, false);
+        scanMenuByCustomData("advancedserverselecter:server", serverKey, false);
     }
 
     private static void scanMenu() {
@@ -252,7 +249,7 @@ public class AnarchyExecutor {
         }
     }
 
-    private static void scanMenuByNbt(String nbtKey, String expectedValue, boolean firstMenu) {
+    private static void scanMenuByCustomData(String nbtKey, String expectedValue, boolean firstMenu) {
         Screen screen = client().currentScreen;
         if (!(screen instanceof GenericContainerScreen handledScreen) || expectedValue == null) return;
 
@@ -261,7 +258,7 @@ public class AnarchyExecutor {
         for (int i = 0; i < containerSlots; i++) {
             ItemStack stack = handler.getSlot(i).getStack();
             if (!stack.isEmpty()) {
-                String value = readNbt(stack, nbtKey);
+                String value = readCustomData(stack, nbtKey);
                 if (expectedValue.equals(value)) {
                     clickSlot(handledScreen, i);
                     if (firstMenu) {
@@ -288,9 +285,7 @@ public class AnarchyExecutor {
                     if (m.find()) {
                         try {
                             int num = Integer.parseInt(m.group(1));
-                            if (num == number) {
-                                return i;
-                            }
+                            if (num == number) return i;
                         } catch (NumberFormatException ignored) { }
                     }
                 }
@@ -324,55 +319,36 @@ public class AnarchyExecutor {
         };
     }
 
-    private static String readNbt(ItemStack stack, String key) {
-        if (!stack.hasNbt()) return null;
-        NbtCompound root = stack.getNbt();
-        if (root != null && root.contains("PublicBukkitValues")) {
-            NbtCompound values = root.getCompound("PublicBukkitValues");
-            String val = values.getString(key);
-            return val.isEmpty() ? null : val;
-        }
-        return null;
+    private static String readCustomData(ItemStack stack, String key) {
+        NbtComponent customData = stack.get(DataComponentTypes.CUSTOM_DATA);
+        if (customData == null || customData.isEmpty()) return null;
+
+        NbtCompound root = customData.copyNbt();
+        return root.getCompound("PublicBukkitValues")
+                .flatMap(values -> values.getString(key))
+                .filter(value -> !value.isEmpty())
+                .orElse(null);
     }
 
     private static String getNameOrLoreText(ItemStack stack) {
-        if (!stack.hasNbt() || stack.getNbt() == null) return null;
-        NbtCompound display = stack.getNbt().getCompound("display");
-        if (display.isEmpty()) return null;
+        StringBuilder text = new StringBuilder();
 
-        if (display.contains("Name")) {
-            String nameRaw = display.getString("Name");
-            try {
-                Text parsed = Serializer.fromJson(nameRaw);
-                if (parsed != null) {
-                    String nameText = parsed.getString();
-                    if (nameText != null && !nameText.isEmpty()) {
-                        return nameText;
-                    }
-                }
-            } catch (Exception ignored) { }
+        String name = stack.getName().getString();
+        if (name != null && !name.isBlank()) {
+            text.append(name);
         }
 
-        if (!display.contains("Lore")) return null;
-        var loreList = display.getList("Lore", NbtElement.STRING_TYPE);
-        if (loreList.isEmpty()) return null;
-
-        StringBuilder fullText = new StringBuilder();
-        for (int i = 0; i < loreList.size(); i++) {
-            String raw = loreList.getString(i);
-            try {
-                Text parsed = Serializer.fromJson(raw);
-                if (parsed != null) {
-                    fullText.append(parsed.getString());
-                } else {
-                    fullText.append(raw);
-                }
-            } catch (Exception e) {
-                fullText.append(raw);
+        LoreComponent lore = stack.get(DataComponentTypes.LORE);
+        if (lore != null) {
+            for (Text line : lore.lines()) {
+                String value = line.getString();
+                if (value == null || value.isBlank()) continue;
+                if (!text.isEmpty()) text.append(' ');
+                text.append(value);
             }
-            if (i < loreList.size() - 1) fullText.append(" ");
         }
-        String result = fullText.toString().trim();
+
+        String result = text.toString().trim();
         return result.isEmpty() ? null : result;
     }
 
