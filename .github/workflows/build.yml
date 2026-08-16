@@ -17,7 +17,9 @@ jobs:
           cache: gradle
       - name: Apply player source overlay
         run: |
-          unzip -o .ci/player-ranges-overlay.zip -d .
+          cat .ci/chunks2/*.txt | tr -d '\n\r' | base64 -d > /tmp/player-ranges-overlay.zip
+          unzip -t /tmp/player-ranges-overlay.zip
+          unzip -o /tmp/player-ranges-overlay.zip -d .
           rm -rf src/main/java/ru/heldyy/hubswap/linkify
       - name: Make Gradle executable
         run: chmod +x gradlew
