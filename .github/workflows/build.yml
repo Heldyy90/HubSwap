@@ -2,7 +2,7 @@ name: Build HubSwap 1.21.11
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [ main, review/pr1-merged-base ]
   workflow_dispatch:
 
 jobs:
@@ -23,5 +23,5 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: HubSwap-1.21.11-1.0.7
+          name: HubSwap-1.21.11-1.0.9-SNAPSHOT
           path: build/libs/*.jar
