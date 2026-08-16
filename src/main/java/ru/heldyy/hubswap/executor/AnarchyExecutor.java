@@ -2,9 +2,11 @@ package ru.heldyy.hubswap.executor;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.ingame.GenericContainerScreen;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
 import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.text.Text;
 import net.minecraft.text.Text.Serializer;
@@ -12,15 +14,14 @@ import net.minecraft.world.World;
 import ru.heldyy.hubswap.HubSwap;
 import ru.heldyy.hubswap.config.ModConfig;
 import ru.heldyy.hubswap.gui.NotificationRenderer;
-import ru.heldyy.hubswap.gui.TransitionDetector;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class AnarchyExecutor {
-    private static final MinecraftClient client = MinecraftClient.getInstance();
 
     private enum State {
         IDLE,
@@ -45,31 +46,52 @@ public class AnarchyExecutor {
     private static final Pattern CLASSIC_PATTERN = Pattern.compile("(?i)Классик\\s*#?\\s*(\\d+)");
     private static final Pattern PRIME_PATTERN = Pattern.compile("(?i)Прайм\\s*#?\\s*(\\d+)");
 
-    // ---- TOP/DOWN ----
+    private static MinecraftClient client() {
+        return MinecraftClient.getInstance();
+    }
+
     public static void top(String modeName, int step) {
         if (step < 1) step = 1;
-        int max = HubSwap.getConfig().getMode(modeName).getRanges().getTotal();
-        int current = currentNumbers.getOrDefault(modeName, 1);
+        ModConfig.ModeConfig modeCfg = getModeSafely(modeName);
+        if (modeCfg == null) return;
+        int max = modeCfg.getRanges().getTotal();
+        if (max <= 0) {
+            sendError("Для режима не задан допустимый диапазон серверов");
+            return;
+        }
+        String normalizedMode = normalizeMode(modeName);
+        int current = currentNumbers.getOrDefault(normalizedMode, 1);
         int newNumber = ((current - 1 + step) % max) + 1;
-        start(modeName, newNumber);
+        start(normalizedMode, newNumber);
     }
 
     public static void down(String modeName, int step) {
         if (step < 1) step = 1;
-        int max = HubSwap.getConfig().getMode(modeName).getRanges().getTotal();
-        int current = currentNumbers.getOrDefault(modeName, 1);
-        int newNumber = ((current - 1 - step % max + max) % max) + 1;
-        start(modeName, newNumber);
+        ModConfig.ModeConfig modeCfg = getModeSafely(modeName);
+        if (modeCfg == null) return;
+        int max = modeCfg.getRanges().getTotal();
+        if (max <= 0) {
+            sendError("Для режима не задан допустимый диапазон серверов");
+            return;
+        }
+        String normalizedMode = normalizeMode(modeName);
+        int current = currentNumbers.getOrDefault(normalizedMode, 1);
+        int normalizedStep = step % max;
+        int newNumber = ((current - 1 - normalizedStep + max) % max) + 1;
+        start(normalizedMode, newNumber);
     }
 
     public static void start(String modeName, int number) {
+        MinecraftClient client = client();
         if (client.player == null || client.getNetworkHandler() == null) {
             sendError("Вы не подключены к серверу");
             return;
         }
 
-        ModConfig config = HubSwap.getConfig();
-        ModConfig.ModeConfig modeCfg = config.getMode(modeName);
+        ModConfig.ModeConfig modeCfg = getModeSafely(modeName);
+        if (modeCfg == null) return;
+
+        String normalizedMode = normalizeMode(modeName);
         if (!modeCfg.getRanges().isValid(number)) {
             sendError("Номер вне допустимого диапазона (1-" + modeCfg.getRanges().getMax() + ")");
             return;
@@ -77,9 +99,9 @@ public class AnarchyExecutor {
 
         reset();
 
-        mode = modeName;
+        mode = normalizedMode;
         targetNumber = number;
-        timeoutTicks = config.getTimeoutTicks();
+        timeoutTicks = HubSwap.getConfig().getTimeoutTicks();
         prevWorld = client.world;
         ticks = 0;
 
@@ -96,12 +118,11 @@ public class AnarchyExecutor {
             serverKey = number == 1 ? "lanarchy" : "lanarchy" + number;
         }
 
-        // Проверка уже открытого меню
         Screen screen = client.currentScreen;
-        if (screen instanceof HandledScreen<?> handledScreen) {
+        if (screen instanceof GenericContainerScreen handledScreen) {
             if ("lite".equals(mode)) {
                 var handler = handledScreen.getScreenHandler();
-                int containerSlots = handler.slots.size() - 36;
+                int containerSlots = getContainerSlotCount(handledScreen);
                 boolean foundType = false;
                 boolean foundServer = false;
                 for (int i = 0; i < containerSlots; i++) {
@@ -140,7 +161,12 @@ public class AnarchyExecutor {
 
     public static void onChatMessage(String msg) {
         if (state != State.WAITING_HUB_WORLD || msg == null) return;
-        String lower = msg.toLowerCase();
+        MinecraftClient client = client();
+        if (client.player == null || client.getNetworkHandler() == null) {
+            reset();
+            return;
+        }
+        String lower = msg.toLowerCase(Locale.ROOT);
         if (lower.contains("уже подключен") || lower.contains("вы уже в лобби") || lower.contains("уже подключены")) {
             sendMenuCommand();
         }
@@ -148,6 +174,7 @@ public class AnarchyExecutor {
 
     public static void tick() {
         if (state == State.IDLE) return;
+        MinecraftClient client = client();
         if (client.player == null || client.getNetworkHandler() == null) {
             reset();
             return;
@@ -169,10 +196,16 @@ public class AnarchyExecutor {
             case WAITING_MENU1 -> scanMenu1();
             case WAITING_MENU2 -> scanMenu2();
             case WAITING_MENU -> scanMenu();
+            default -> { }
         }
     }
 
     private static void sendMenuCommand() {
+        MinecraftClient client = client();
+        if (client.getNetworkHandler() == null) {
+            reset();
+            return;
+        }
         String menuCmd = switch (mode) {
             case "lite" -> "lite";
             case "lite120" -> "lite120";
@@ -203,8 +236,8 @@ public class AnarchyExecutor {
     }
 
     private static void scanMenu() {
-        Screen screen = client.currentScreen;
-        if (!(screen instanceof HandledScreen<?> handledScreen)) return;
+        Screen screen = client().currentScreen;
+        if (!(screen instanceof GenericContainerScreen handledScreen)) return;
 
         Pattern pattern = getPatternForMode(mode);
         if (pattern == null) {
@@ -220,24 +253,24 @@ public class AnarchyExecutor {
     }
 
     private static void scanMenuByNbt(String nbtKey, String expectedValue, boolean firstMenu) {
-        Screen screen = client.currentScreen;
-        if (screen instanceof HandledScreen<?> handledScreen) {
-            var handler = handledScreen.getScreenHandler();
-            int containerSlots = handler.slots.size() - 36;
-            for (int i = 0; i < containerSlots; i++) {
-                ItemStack stack = handler.getSlot(i).getStack();
-                if (!stack.isEmpty()) {
-                    String value = readNbt(stack, nbtKey);
-                    if (expectedValue.equals(value)) {
-                        clickSlot(handledScreen, i);
-                        if (firstMenu) {
-                            state = State.WAITING_MENU2;
-                        } else {
-                            finishSuccess();
-                        }
-                        ticks = 0;
-                        return;
+        Screen screen = client().currentScreen;
+        if (!(screen instanceof GenericContainerScreen handledScreen) || expectedValue == null) return;
+
+        var handler = handledScreen.getScreenHandler();
+        int containerSlots = getContainerSlotCount(handledScreen);
+        for (int i = 0; i < containerSlots; i++) {
+            ItemStack stack = handler.getSlot(i).getStack();
+            if (!stack.isEmpty()) {
+                String value = readNbt(stack, nbtKey);
+                if (expectedValue.equals(value)) {
+                    clickSlot(handledScreen, i);
+                    if (firstMenu) {
+                        state = State.WAITING_MENU2;
+                    } else {
+                        finishSuccess();
                     }
+                    ticks = 0;
+                    return;
                 }
             }
         }
@@ -245,11 +278,11 @@ public class AnarchyExecutor {
 
     private static int findSlotByLore(HandledScreen<?> screen, Pattern pattern, int number) {
         var handler = screen.getScreenHandler();
-        int containerSlots = handler.slots.size() - 36;
+        int containerSlots = getContainerSlotCount(screen);
         for (int i = 0; i < containerSlots; i++) {
             ItemStack stack = handler.getSlot(i).getStack();
             if (!stack.isEmpty()) {
-                String loreText = getLoreText(stack);
+                String loreText = getNameOrLoreText(stack);
                 if (loreText != null && !loreText.isEmpty()) {
                     Matcher m = pattern.matcher(loreText);
                     if (m.find()) {
@@ -258,7 +291,7 @@ public class AnarchyExecutor {
                             if (num == number) {
                                 return i;
                             }
-                        } catch (NumberFormatException ignored) {}
+                        } catch (NumberFormatException ignored) { }
                     }
                 }
             }
@@ -266,7 +299,13 @@ public class AnarchyExecutor {
         return -1;
     }
 
+    private static int getContainerSlotCount(HandledScreen<?> screen) {
+        return Math.max(0, screen.getScreenHandler().slots.size() - 36);
+    }
+
     private static void clickSlot(HandledScreen<?> screen, int slot) {
+        MinecraftClient client = client();
+        if (client.interactionManager == null || client.player == null) return;
         client.interactionManager.clickSlot(
                 screen.getScreenHandler().syncId,
                 slot,
@@ -296,10 +335,10 @@ public class AnarchyExecutor {
         return null;
     }
 
-    private static String getLoreText(ItemStack stack) {
-        if (!stack.hasNbt()) return null;
+    private static String getNameOrLoreText(ItemStack stack) {
+        if (!stack.hasNbt() || stack.getNbt() == null) return null;
         NbtCompound display = stack.getNbt().getCompound("display");
-        if (display == null) return null;
+        if (display.isEmpty()) return null;
 
         if (display.contains("Name")) {
             String nameRaw = display.getString("Name");
@@ -311,11 +350,11 @@ public class AnarchyExecutor {
                         return nameText;
                     }
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) { }
         }
 
         if (!display.contains("Lore")) return null;
-        var loreList = display.getList("Lore", 8);
+        var loreList = display.getList("Lore", NbtElement.STRING_TYPE);
         if (loreList.isEmpty()) return null;
 
         StringBuilder fullText = new StringBuilder();
@@ -339,12 +378,31 @@ public class AnarchyExecutor {
 
     private static void finishSuccess() {
         HubSwap.getStats().recordSwitch(mode, targetNumber);
-        HubSwap.saveStats();
+        HubSwap.getStats().onServerChange(mode);
         NotificationRenderer.showNotification("Успешный переход на " + mode + " #" + targetNumber);
         reset();
     }
 
+    private static ModConfig.ModeConfig getModeSafely(String modeName) {
+        try {
+            return HubSwap.getConfig().getMode(modeName);
+        } catch (IllegalArgumentException e) {
+            sendError(e.getMessage());
+            return null;
+        }
+    }
+
+    private static String normalizeMode(String modeName) {
+        if (modeName == null) return "lite";
+        return switch (modeName.toLowerCase(Locale.ROOT)) {
+            case "light" -> "lite";
+            case "light120" -> "lite120";
+            default -> modeName.toLowerCase(Locale.ROOT);
+        };
+    }
+
     private static void sendError(String msg) {
+        MinecraftClient client = client();
         if (client.player != null) {
             client.player.sendMessage(Text.literal("[HubSwap] Ошибка: " + msg), false);
         }
