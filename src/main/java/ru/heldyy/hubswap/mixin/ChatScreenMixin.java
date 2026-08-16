@@ -19,7 +19,7 @@ public class ChatScreenMixin {
     );
 
     @ModifyVariable(
-            method = "sendMessage(Ljava/lang/String;Z)Z",
+            method = "sendMessage(Ljava/lang/String;Z)V",
             at = @At("HEAD"),
             argsOnly = true,
             require = 1
