@@ -1,11 +1,10 @@
 {
   "required": true,
   "package": "ru.heldyy.hubswap.mixin",
-  "compatibilityLevel": "JAVA_21",
+  "compatibilityLevel": "JAVA_17",
   "client": [
     "ChatHudMixin",
-    "ChatScreenMixin",
-    "PlayerListHudMixin"
+    "ChatScreenMixin"
   ],
   "injectors": {
     "defaultRequire": 1

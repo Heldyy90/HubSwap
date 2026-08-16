@@ -14,15 +14,22 @@ import java.util.regex.Pattern;
 
 public class ServerLinkifier {
 
+    // Паттерн с явной регистронезависимостью и поддержкой пробелов
     private static final Pattern PATTERN = Pattern.compile(
             "(?i)" +
-                    "(?<primeDash>\\bPrime-(?<primeDashNum>[1-9])\\b)" +
-                    "|(?<primeN>\\bprime(?<primeNum>[1-9])\\b)" +
-                    "|(?<primeSpace>\\bPrime\\s+(?<primeSpaceNum>[1-9])\\b)" +
-                    "|(?<primeBare>\\bprime\\b)" +
-                    "|(?<liteN>\\bLite-Anarchy-(?<liteNum>\\d+)\\b)" +
+                    // ---- НОВЫЕ ШАБЛОНЫ (регистронезависимые) ----
+                    "(?<liteNew>(?:лайт|lite)\\s*#?\\s*(?<liteNum>\\d+))" +
+                    "|" +
+                    "(?<lite120New>(?:лайт\\s*1\\.20|лайт120|lite\\s*1\\.20|lite120)\\s*#?\\s*(?<lite120Num>\\d+))" +
+                    "|" +
+                    "(?<classicNew>(?:классик|classic|classik|clasik|clasic)\\s*#?\\s*(?<classicNum>\\d+))" +
+                    "|" +
+                    "(?<primeNew>(?:прайм|prime)\\s*#?\\s*(?<primeNum>\\d+))" +
+                    "|" +
+                    // ---- СТАРЫЕ ШАБЛОНЫ (обратная совместимость) ----
+                    "(?<liteN>\\bLite-Anarchy-(?<liteNumOld>\\d+)\\b)" +
                     "|(?<liteShort>\\bLite-(?<liteShortNum>\\d+)\\b)" +
-                    "|(?<lite120>\\b1-20L-(?<lite120Num>[1-3])\\b)" +
+                    "|(?<lite120>\\b1-20L-(?<lite120NumOld>[1-3])\\b)" +
                     "|(?<l2a3>\\bl2anarchy3\\b)" +
                     "|(?<l2a2>\\bl2anarchy2\\b)" +
                     "|(?<l2a1>\\bl2anarchy\\b)" +
@@ -44,10 +51,8 @@ public class ServerLinkifier {
 
         original.visit((style, part) -> {
             if (part == null || part.isEmpty()) return Optional.empty();
-
             boolean segmentChanged = appendLinkifiedPart(out, style, part, cfg);
             if (segmentChanged) changed[0] = true;
-
             return Optional.empty();
         }, Style.EMPTY);
 
@@ -70,61 +75,68 @@ public class ServerLinkifier {
             }
 
             String matchedText = segment.substring(m.start(), m.end());
-
-            boolean prime = m.group("primeDash") != null
-                    || m.group("primeN") != null
-                    || m.group("primeSpace") != null
-                    || m.group("primeBare") != null;
-
-            boolean lite120 = m.group("lite120") != null
-                    || m.group("l2a1") != null
-                    || m.group("l2a2") != null
-                    || m.group("l2a3") != null;
-
-            boolean lanBare = m.group("lanBare") != null;
-
-            boolean lite = lite120
-                    || m.group("liteN") != null
-                    || m.group("liteShort") != null
-                    || m.group("lanN") != null
-                    || lanBare;
-
+            String mode = null;
             int serverNum = 1;
 
-            if (m.group("primeDashNum") != null) {
-                serverNum = parseIntSafe(m.group("primeDashNum"), 1);
-            } else if (m.group("primeNum") != null) {
+            // Новые группы
+            if (m.group("liteNew") != null) {
+                mode = "lite";
+                serverNum = parseIntSafe(m.group("liteNum"), 1);
+            } else if (m.group("lite120New") != null) {
+                mode = "lite120";
+                serverNum = parseIntSafe(m.group("lite120Num"), 1);
+            } else if (m.group("classicNew") != null) {
+                mode = "classic";
+                serverNum = parseIntSafe(m.group("classicNum"), 1);
+            } else if (m.group("primeNew") != null) {
+                mode = "prime";
                 serverNum = parseIntSafe(m.group("primeNum"), 1);
-            } else if (m.group("primeSpaceNum") != null) {
-                serverNum = parseIntSafe(m.group("primeSpaceNum"), 1);
-            } else if (m.group("primeBare") != null) {
-                serverNum = 1;
+            }
+            // Старые группы
+            else if (m.group("liteN") != null) {
+                mode = "lite";
+                serverNum = parseIntSafe(m.group("liteNumOld"), 1);
+            } else if (m.group("liteShort") != null) {
+                mode = "lite";
+                serverNum = parseIntSafe(m.group("liteShortNum"), 1);
+            } else if (m.group("lite120") != null) {
+                mode = "lite120";
+                serverNum = parseIntSafe(m.group("lite120NumOld"), 1);
             } else if (m.group("l2a3") != null) {
+                mode = "lite120";
                 serverNum = 3;
             } else if (m.group("l2a2") != null) {
+                mode = "lite120";
                 serverNum = 2;
             } else if (m.group("l2a1") != null) {
+                mode = "lite120";
                 serverNum = 1;
-            } else if (m.group("liteNum") != null) {
-                serverNum = parseIntSafe(m.group("liteNum"), 1);
-            } else if (m.group("liteShortNum") != null) {
-                serverNum = parseIntSafe(m.group("liteShortNum"), 1);
-            } else if (m.group("lite120Num") != null) {
-                serverNum = parseIntSafe(m.group("lite120Num"), 1);
-            } else if (m.group("lanNum") != null) {
+            } else if (m.group("lanN") != null) {
+                mode = "lite";
                 serverNum = parseIntSafe(m.group("lanNum"), 1);
-            } else if (m.group("clDashNum") != null) {
+            } else if (m.group("lanBare") != null) {
+                mode = "lite";
+                serverNum = 1;
+            } else if (m.group("clDash") != null) {
+                mode = "classic";
                 serverNum = parseIntSafe(m.group("clDashNum"), 1);
-            } else if (m.group("clNum") != null) {
+            } else if (m.group("clN") != null) {
+                mode = "classic";
                 serverNum = parseIntSafe(m.group("clNum"), 1);
             }
 
-            String baseCmd = prime
-                    ? cfg.getPrimeCommand()
-                    : (lite120
-                        ? cfg.getLight120Command()
-                        : (lite ? cfg.getLightCommand() : cfg.getClassicCommand()));
+            if (mode == null) {
+                out.append(Text.literal(matchedText).setStyle(baseStyle));
+                last = m.end();
+                continue;
+            }
 
+            String baseCmd = switch (mode) {
+                case "classic" -> "cn";
+                case "prime" -> "pm";
+                case "lite120" -> "ln120";
+                default -> "ln";
+            };
             String command = "/" + baseCmd + " " + serverNum;
 
             Formatting linkColor = cfg.getLinkColor();
@@ -133,8 +145,9 @@ public class ServerLinkifier {
                     .withItalic(baseStyle.isItalic())
                     .withUnderline(true)
                     .withColor(linkColor)
-                    .withClickEvent(new ClickEvent.RunCommand(command))
-                    .withHoverEvent(new HoverEvent.ShowText(
+                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, command))
+                    .withHoverEvent(new HoverEvent(
+                            HoverEvent.Action.SHOW_TEXT,
                             Text.literal("Нажмите: ").formatted(Formatting.GRAY)
                                     .append(Text.literal(command).formatted(linkColor))
                     ));

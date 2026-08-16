@@ -1,18 +1,15 @@
 package ru.heldyy.hubswap.config;
 
 import com.google.gson.annotations.Expose;
+import org.lwjgl.glfw.GLFW;
 
 public class HotkeySlot {
-
-    
     @Expose
     private int keyCode = -1;
 
-    
     @Expose
-    private String mode = "light";
+    private String mode = "lite"; // lite, lite120, classic, prime
 
-    
     @Expose
     private int serverNumber = 1;
 
@@ -38,22 +35,21 @@ public class HotkeySlot {
     public void setServerNumber(int serverNumber) { this.serverNumber = serverNumber; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    
     public String getKeyName() {
         if (keyCode < 0) return "---";
-        return org.lwjgl.glfw.GLFW.glfwGetKeyName(keyCode, 0) != null
-                ? org.lwjgl.glfw.GLFW.glfwGetKeyName(keyCode, 0).toUpperCase()
-                : "Key" + keyCode;
+        String name = GLFW.glfwGetKeyName(keyCode, 0);
+        return name != null ? name.toUpperCase() : "Key" + keyCode;
     }
 
-    
     public String getCommandDisplay(ModConfig config) {
-        String cmd = switch (mode) {
-            case "classic" -> config.getClassicCommand();
-            case "light120" -> config.getLight120Command();
-            case "prime" -> config.getPrimeCommand();
-            default -> config.getLightCommand();
+        // Для отображения в GUI: команда + номер
+        String modeName = switch (mode) {
+            case "lite" -> "Lite";
+            case "lite120" -> "Lite120";
+            case "classic" -> "Classic";
+            case "prime" -> "Prime";
+            default -> mode;
         };
-        return cmd + " " + serverNumber;
+        return modeName + " #" + serverNumber;
     }
 }

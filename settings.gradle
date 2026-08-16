@@ -1,5 +1,6 @@
 pluginManagement {
     repositories {
+        // Fabric Loom лежит в репозитории Fabric
         maven { url = 'https://maven.fabricmc.net/' }
         gradlePluginPortal()
         mavenCentral()
