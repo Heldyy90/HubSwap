@@ -4,6 +4,7 @@ import com.google.gson.annotations.Expose;
 import net.minecraft.util.Formatting;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
@@ -160,7 +161,7 @@ public class ModConfig {
         public RangeConfig(List<RangeEntry> entries, int total) {
             this.entries = normalizeEntries(entries);
             this.total = Math.max(1, total);
-            syncSingleAllRange();
+            normalizeConsistency();
         }
 
         public List<RangeEntry> getEntries() {
@@ -169,15 +170,35 @@ public class ModConfig {
         }
 
         public void setEntries(List<RangeEntry> entries) {
-            this.entries = normalizeEntries(entries);
-            syncSingleAllRange();
+            List<RangeEntry> candidate = normalizeEntries(entries);
+            if (candidate.isEmpty()) return;
+
+            if (candidate.size() == 1 && "all".equals(candidate.get(0).key)) {
+                this.entries = candidate;
+                syncSingleAllRange();
+                return;
+            }
+
+            int candidateTotal = contiguousTotal(candidate);
+            if (candidateTotal <= 0) return;
+
+            this.entries = candidate;
+            this.total = candidateTotal;
         }
 
         public int getTotal() { return Math.max(1, total); }
 
         public void setTotal(int total) {
-            this.total = Math.max(1, total);
-            syncSingleAllRange();
+            int normalized = Math.max(1, total);
+            if (getEntries().size() == 1 && "all".equals(getEntries().get(0).key)) {
+                this.total = normalized;
+                syncSingleAllRange();
+                return;
+            }
+
+            if (getEntries().isEmpty() || contiguousTotal(getEntries()) == normalized) {
+                this.total = normalized;
+            }
         }
 
         public RangeEntry find(int number) {
@@ -195,11 +216,33 @@ public class ModConfig {
             return getEntries().isEmpty() || find(number) != null;
         }
 
+        private void normalizeConsistency() {
+            if (entries.isEmpty()) return;
+            if (entries.size() == 1 && "all".equals(entries.get(0).key)) {
+                syncSingleAllRange();
+                return;
+            }
+            int covered = contiguousTotal(entries);
+            if (covered > 0) total = covered;
+        }
+
         private void syncSingleAllRange() {
             if (entries != null && entries.size() == 1 && "all".equals(entries.get(0).key)) {
                 entries.get(0).min = 1;
                 entries.get(0).max = getTotal();
             }
+        }
+
+        private static int contiguousTotal(List<RangeEntry> entries) {
+            if (entries == null || entries.isEmpty()) return -1;
+            List<RangeEntry> sorted = new ArrayList<>(entries);
+            sorted.sort(Comparator.comparingInt(entry -> entry.min));
+            int expected = 1;
+            for (RangeEntry entry : sorted) {
+                if (entry.min != expected || entry.max < entry.min) return -1;
+                expected = entry.max + 1;
+            }
+            return expected - 1;
         }
 
         private static List<RangeEntry> normalizeEntries(List<RangeEntry> entries) {
