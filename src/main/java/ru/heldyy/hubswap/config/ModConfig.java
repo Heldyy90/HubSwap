@@ -1,15 +1,14 @@
 package ru.heldyy.hubswap.config;
 
 import com.google.gson.annotations.Expose;
-import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
-
+import java.util.Locale;
 
 public class ModConfig {
-    // ===== ОБЩИЕ НАСТРОЙКИ =====
     @Expose
     private boolean notificationsEnabled = true;
 
@@ -20,10 +19,7 @@ public class ModConfig {
     private Formatting linkColor = Formatting.GOLD;
 
     @Expose
-    private int timeoutTicks = 200; // таймаут в тиках (~10 сек)
-
-    // ===== РЕЖИМЫ =====
-    // Каждый режим имеет свои алиасы и диапазоны
+    private int timeoutTicks = 200;
 
     @Expose
     private ModeConfig lite = new ModeConfig(
@@ -51,8 +47,8 @@ public class ModConfig {
             "classic",
             List.of("cn"),
             new RangeConfig(List.of(
-                    new RangeEntry("all", "Все", 1, 3)
-            ), 3)
+                    new RangeEntry("all", "Все", 1, 5)
+            ), 5)
     );
 
     @Expose
@@ -64,15 +60,11 @@ public class ModConfig {
             ), 9)
     );
 
-    // ===== ХОТКЕИ =====
     @Expose
     private List<HotkeySlot> hotkeySlots = createDefaultHotkeySlots();
 
-    // ===== КОНСТРУКТОРЫ И ГЕТТЕРЫ =====
-
     public ModConfig() {}
 
-    // --- Общие ---
     public boolean isNotificationsEnabled() { return notificationsEnabled; }
     public void setNotificationsEnabled(boolean enabled) { this.notificationsEnabled = enabled; }
 
@@ -85,24 +77,26 @@ public class ModConfig {
     public int getTimeoutTicks() { return timeoutTicks; }
     public void setTimeoutTicks(int ticks) { this.timeoutTicks = Math.max(20, Math.min(600, ticks)); }
 
-    // --- Режимы ---
     public ModeConfig getLite() { return lite; }
     public ModeConfig getLite120() { return lite120; }
     public ModeConfig getClassic() { return classic; }
     public ModeConfig getPrime() { return prime; }
 
     public ModeConfig getMode(String modeName) {
-        return switch (modeName.toLowerCase()) {
-            case "lite" -> lite;
-            case "lite120" -> lite120;
+        if (modeName == null) {
+            throw new IllegalArgumentException("Неизвестный режим: null");
+        }
+        return switch (modeName.toLowerCase(Locale.ROOT)) {
+            case "lite", "light" -> lite;
+            case "lite120", "light120" -> lite120;
             case "classic" -> classic;
             case "prime" -> prime;
             default -> throw new IllegalArgumentException("Неизвестный режим: " + modeName);
         };
     }
 
-    // --- Хоткеи ---
     public List<HotkeySlot> getHotkeySlots() {
+        if (hotkeySlots == null) hotkeySlots = createDefaultHotkeySlots();
         while (hotkeySlots.size() < 8) hotkeySlots.add(new HotkeySlot());
         return hotkeySlots;
     }
@@ -115,11 +109,9 @@ public class ModConfig {
         return list;
     }
 
-    // ===== ВЛОЖЕННЫЕ КЛАССЫ =====
-
     public static class ModeConfig {
         @Expose
-        private final String id; // идентификатор (lite, lite120, classic, prime)
+        private final String id;
 
         @Expose
         private List<String> aliases;
@@ -127,7 +119,6 @@ public class ModConfig {
         @Expose
         private RangeConfig ranges;
 
-        // Для десериализации Gson нужен конструктор без аргументов
         public ModeConfig() {
             this.id = "unknown";
             this.aliases = new ArrayList<>();
@@ -136,17 +127,23 @@ public class ModConfig {
 
         public ModeConfig(String id, List<String> aliases, RangeConfig ranges) {
             this.id = id;
-            this.aliases = new ArrayList<>(aliases);
-            this.ranges = ranges;
+            this.aliases = aliases == null ? new ArrayList<>() : new ArrayList<>(aliases);
+            this.ranges = ranges == null ? new RangeConfig() : ranges;
         }
 
         public String getId() { return id; }
-        public List<String> getAliases() { return aliases; }
-        public void setAliases(List<String> aliases) {
-            this.aliases = new ArrayList<>(aliases);
+        public List<String> getAliases() {
+            if (aliases == null) aliases = new ArrayList<>();
+            return aliases;
         }
-        public RangeConfig getRanges() { return ranges; }
-        public void setRanges(RangeConfig ranges) { this.ranges = ranges; }
+        public void setAliases(List<String> aliases) {
+            this.aliases = aliases == null ? new ArrayList<>() : new ArrayList<>(aliases);
+        }
+        public RangeConfig getRanges() {
+            if (ranges == null) ranges = new RangeConfig();
+            return ranges;
+        }
+        public void setRanges(RangeConfig ranges) { this.ranges = ranges == null ? new RangeConfig() : ranges; }
     }
 
     public static class RangeConfig {
@@ -162,25 +159,101 @@ public class ModConfig {
         }
 
         public RangeConfig(List<RangeEntry> entries, int total) {
-            this.entries = new ArrayList<>(entries);
+            this.entries = normalizeEntries(entries);
             this.total = Math.max(1, total);
+            normalizeConsistency();
         }
 
-        public List<RangeEntry> getEntries() { return entries; }
-        public void setEntries(List<RangeEntry> entries) { this.entries = new ArrayList<>(entries); }
-        public int getTotal() { return total; }
-        public void setTotal(int total) { this.total = Math.max(1, total); }
+        public List<RangeEntry> getEntries() {
+            if (entries == null) entries = new ArrayList<>();
+            return entries;
+        }
+
+        public void setEntries(List<RangeEntry> entries) {
+            List<RangeEntry> candidate = normalizeEntries(entries);
+            if (candidate.isEmpty()) return;
+
+            if (candidate.size() == 1 && "all".equals(candidate.get(0).key)) {
+                this.entries = candidate;
+                syncSingleAllRange();
+                return;
+            }
+
+            int candidateTotal = contiguousTotal(candidate);
+            if (candidateTotal <= 0) return;
+
+            this.entries = candidate;
+            this.total = candidateTotal;
+        }
+
+        public int getTotal() { return Math.max(1, total); }
+
+        public void setTotal(int total) {
+            int normalized = Math.max(1, total);
+            if (getEntries().size() == 1 && "all".equals(getEntries().get(0).key)) {
+                this.total = normalized;
+                syncSingleAllRange();
+                return;
+            }
+
+            if (getEntries().isEmpty() || contiguousTotal(getEntries()) == normalized) {
+                this.total = normalized;
+            }
+        }
 
         public RangeEntry find(int number) {
-            for (RangeEntry e : entries) {
+            for (RangeEntry e : getEntries()) {
                 if (number >= e.min && number <= e.max) return e;
             }
             return null;
         }
 
         public int getMin() { return 1; }
-        public int getMax() { return total; }
-        public boolean isValid(int number) { return number >= 1 && number <= total; }
+        public int getMax() { return getTotal(); }
+
+        public boolean isValid(int number) {
+            if (number < 1 || number > getTotal()) return false;
+            return getEntries().isEmpty() || find(number) != null;
+        }
+
+        private void normalizeConsistency() {
+            if (entries.isEmpty()) return;
+            if (entries.size() == 1 && "all".equals(entries.get(0).key)) {
+                syncSingleAllRange();
+                return;
+            }
+            int covered = contiguousTotal(entries);
+            if (covered > 0) total = covered;
+        }
+
+        private void syncSingleAllRange() {
+            if (entries != null && entries.size() == 1 && "all".equals(entries.get(0).key)) {
+                entries.get(0).min = 1;
+                entries.get(0).max = getTotal();
+            }
+        }
+
+        private static int contiguousTotal(List<RangeEntry> entries) {
+            if (entries == null || entries.isEmpty()) return -1;
+            List<RangeEntry> sorted = new ArrayList<>(entries);
+            sorted.sort(Comparator.comparingInt(entry -> entry.min));
+            int expected = 1;
+            for (RangeEntry entry : sorted) {
+                if (entry.min != expected || entry.max < entry.min) return -1;
+                expected = entry.max + 1;
+            }
+            return expected - 1;
+        }
+
+        private static List<RangeEntry> normalizeEntries(List<RangeEntry> entries) {
+            List<RangeEntry> result = new ArrayList<>();
+            if (entries == null) return result;
+            for (RangeEntry entry : entries) {
+                if (entry == null) continue;
+                result.add(new RangeEntry(entry.key, entry.name, entry.min, entry.max));
+            }
+            return result;
+        }
     }
 
     public static class RangeEntry {
@@ -201,8 +274,8 @@ public class ModConfig {
         public RangeEntry(String key, String name, int min, int max) {
             this.key = key;
             this.name = name;
-            this.min = min;
-            this.max = max;
+            this.min = Math.min(min, max);
+            this.max = Math.max(min, max);
         }
     }
 

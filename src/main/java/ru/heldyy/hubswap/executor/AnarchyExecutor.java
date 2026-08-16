@@ -2,25 +2,27 @@ package ru.heldyy.hubswap.executor;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.ingame.GenericContainerScreen;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.LoreComponent;
+import net.minecraft.component.type.NbtComponent;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.text.Text;
-import net.minecraft.text.Text.Serializer;
 import net.minecraft.world.World;
 import ru.heldyy.hubswap.HubSwap;
 import ru.heldyy.hubswap.config.ModConfig;
 import ru.heldyy.hubswap.gui.NotificationRenderer;
-import ru.heldyy.hubswap.gui.TransitionDetector;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class AnarchyExecutor {
-    private static final MinecraftClient client = MinecraftClient.getInstance();
 
     private enum State {
         IDLE,
@@ -45,31 +47,52 @@ public class AnarchyExecutor {
     private static final Pattern CLASSIC_PATTERN = Pattern.compile("(?i)Классик\\s*#?\\s*(\\d+)");
     private static final Pattern PRIME_PATTERN = Pattern.compile("(?i)Прайм\\s*#?\\s*(\\d+)");
 
-    // ---- TOP/DOWN ----
+    private static MinecraftClient client() {
+        return MinecraftClient.getInstance();
+    }
+
     public static void top(String modeName, int step) {
         if (step < 1) step = 1;
-        int max = HubSwap.getConfig().getMode(modeName).getRanges().getTotal();
-        int current = currentNumbers.getOrDefault(modeName, 1);
+        ModConfig.ModeConfig modeCfg = getModeSafely(modeName);
+        if (modeCfg == null) return;
+        int max = modeCfg.getRanges().getTotal();
+        if (max <= 0) {
+            sendError("Для режима не задан допустимый диапазон серверов");
+            return;
+        }
+        String normalizedMode = normalizeMode(modeName);
+        int current = currentNumbers.getOrDefault(normalizedMode, 1);
         int newNumber = ((current - 1 + step) % max) + 1;
-        start(modeName, newNumber);
+        start(normalizedMode, newNumber);
     }
 
     public static void down(String modeName, int step) {
         if (step < 1) step = 1;
-        int max = HubSwap.getConfig().getMode(modeName).getRanges().getTotal();
-        int current = currentNumbers.getOrDefault(modeName, 1);
-        int newNumber = ((current - 1 - step % max + max) % max) + 1;
-        start(modeName, newNumber);
+        ModConfig.ModeConfig modeCfg = getModeSafely(modeName);
+        if (modeCfg == null) return;
+        int max = modeCfg.getRanges().getTotal();
+        if (max <= 0) {
+            sendError("Для режима не задан допустимый диапазон серверов");
+            return;
+        }
+        String normalizedMode = normalizeMode(modeName);
+        int current = currentNumbers.getOrDefault(normalizedMode, 1);
+        int normalizedStep = step % max;
+        int newNumber = ((current - 1 - normalizedStep + max) % max) + 1;
+        start(normalizedMode, newNumber);
     }
 
     public static void start(String modeName, int number) {
+        MinecraftClient client = client();
         if (client.player == null || client.getNetworkHandler() == null) {
             sendError("Вы не подключены к серверу");
             return;
         }
 
-        ModConfig config = HubSwap.getConfig();
-        ModConfig.ModeConfig modeCfg = config.getMode(modeName);
+        ModConfig.ModeConfig modeCfg = getModeSafely(modeName);
+        if (modeCfg == null) return;
+
+        String normalizedMode = normalizeMode(modeName);
         if (!modeCfg.getRanges().isValid(number)) {
             sendError("Номер вне допустимого диапазона (1-" + modeCfg.getRanges().getMax() + ")");
             return;
@@ -77,9 +100,9 @@ public class AnarchyExecutor {
 
         reset();
 
-        mode = modeName;
+        mode = normalizedMode;
         targetNumber = number;
-        timeoutTicks = config.getTimeoutTicks();
+        timeoutTicks = HubSwap.getConfig().getTimeoutTicks();
         prevWorld = client.world;
         ticks = 0;
 
@@ -96,19 +119,18 @@ public class AnarchyExecutor {
             serverKey = number == 1 ? "lanarchy" : "lanarchy" + number;
         }
 
-        // Проверка уже открытого меню
         Screen screen = client.currentScreen;
-        if (screen instanceof HandledScreen<?> handledScreen) {
+        if (screen instanceof GenericContainerScreen handledScreen) {
             if ("lite".equals(mode)) {
                 var handler = handledScreen.getScreenHandler();
-                int containerSlots = handler.slots.size() - 36;
+                int containerSlots = getContainerSlotCount(handledScreen);
                 boolean foundType = false;
                 boolean foundServer = false;
                 for (int i = 0; i < containerSlots; i++) {
                     ItemStack stack = handler.getSlot(i).getStack();
                     if (!stack.isEmpty()) {
-                        String typeVal = readNbt(stack, "advancedserverselecter:server-type");
-                        String serverVal = readNbt(stack, "advancedserverselecter:server");
+                        String typeVal = readCustomData(stack, "advancedserverselecter:server-type");
+                        String serverVal = readCustomData(stack, "advancedserverselecter:server");
                         if (categoryKey.equals(typeVal)) foundType = true;
                         if (serverKey.equals(serverVal)) foundServer = true;
                     }
@@ -140,7 +162,12 @@ public class AnarchyExecutor {
 
     public static void onChatMessage(String msg) {
         if (state != State.WAITING_HUB_WORLD || msg == null) return;
-        String lower = msg.toLowerCase();
+        MinecraftClient client = client();
+        if (client.player == null || client.getNetworkHandler() == null) {
+            reset();
+            return;
+        }
+        String lower = msg.toLowerCase(Locale.ROOT);
         if (lower.contains("уже подключен") || lower.contains("вы уже в лобби") || lower.contains("уже подключены")) {
             sendMenuCommand();
         }
@@ -148,6 +175,7 @@ public class AnarchyExecutor {
 
     public static void tick() {
         if (state == State.IDLE) return;
+        MinecraftClient client = client();
         if (client.player == null || client.getNetworkHandler() == null) {
             reset();
             return;
@@ -169,10 +197,16 @@ public class AnarchyExecutor {
             case WAITING_MENU1 -> scanMenu1();
             case WAITING_MENU2 -> scanMenu2();
             case WAITING_MENU -> scanMenu();
+            default -> { }
         }
     }
 
     private static void sendMenuCommand() {
+        MinecraftClient client = client();
+        if (client.getNetworkHandler() == null) {
+            reset();
+            return;
+        }
         String menuCmd = switch (mode) {
             case "lite" -> "lite";
             case "lite120" -> "lite120";
@@ -186,25 +220,21 @@ public class AnarchyExecutor {
         }
         client.getNetworkHandler().sendChatCommand(menuCmd);
 
-        if ("lite".equals(mode)) {
-            state = State.WAITING_MENU1;
-        } else {
-            state = State.WAITING_MENU;
-        }
+        state = "lite".equals(mode) ? State.WAITING_MENU1 : State.WAITING_MENU;
         ticks = 0;
     }
 
     private static void scanMenu1() {
-        scanMenuByNbt("advancedserverselecter:server-type", categoryKey, true);
+        scanMenuByCustomData("advancedserverselecter:server-type", categoryKey, true);
     }
 
     private static void scanMenu2() {
-        scanMenuByNbt("advancedserverselecter:server", serverKey, false);
+        scanMenuByCustomData("advancedserverselecter:server", serverKey, false);
     }
 
     private static void scanMenu() {
-        Screen screen = client.currentScreen;
-        if (!(screen instanceof HandledScreen<?> handledScreen)) return;
+        Screen screen = client().currentScreen;
+        if (!(screen instanceof GenericContainerScreen handledScreen)) return;
 
         Pattern pattern = getPatternForMode(mode);
         if (pattern == null) {
@@ -219,25 +249,25 @@ public class AnarchyExecutor {
         }
     }
 
-    private static void scanMenuByNbt(String nbtKey, String expectedValue, boolean firstMenu) {
-        Screen screen = client.currentScreen;
-        if (screen instanceof HandledScreen<?> handledScreen) {
-            var handler = handledScreen.getScreenHandler();
-            int containerSlots = handler.slots.size() - 36;
-            for (int i = 0; i < containerSlots; i++) {
-                ItemStack stack = handler.getSlot(i).getStack();
-                if (!stack.isEmpty()) {
-                    String value = readNbt(stack, nbtKey);
-                    if (expectedValue.equals(value)) {
-                        clickSlot(handledScreen, i);
-                        if (firstMenu) {
-                            state = State.WAITING_MENU2;
-                        } else {
-                            finishSuccess();
-                        }
-                        ticks = 0;
-                        return;
+    private static void scanMenuByCustomData(String nbtKey, String expectedValue, boolean firstMenu) {
+        Screen screen = client().currentScreen;
+        if (!(screen instanceof GenericContainerScreen handledScreen) || expectedValue == null) return;
+
+        var handler = handledScreen.getScreenHandler();
+        int containerSlots = getContainerSlotCount(handledScreen);
+        for (int i = 0; i < containerSlots; i++) {
+            ItemStack stack = handler.getSlot(i).getStack();
+            if (!stack.isEmpty()) {
+                String value = readCustomData(stack, nbtKey);
+                if (expectedValue.equals(value)) {
+                    clickSlot(handledScreen, i);
+                    if (firstMenu) {
+                        state = State.WAITING_MENU2;
+                    } else {
+                        finishSuccess();
                     }
+                    ticks = 0;
+                    return;
                 }
             }
         }
@@ -245,20 +275,18 @@ public class AnarchyExecutor {
 
     private static int findSlotByLore(HandledScreen<?> screen, Pattern pattern, int number) {
         var handler = screen.getScreenHandler();
-        int containerSlots = handler.slots.size() - 36;
+        int containerSlots = getContainerSlotCount(screen);
         for (int i = 0; i < containerSlots; i++) {
             ItemStack stack = handler.getSlot(i).getStack();
             if (!stack.isEmpty()) {
-                String loreText = getLoreText(stack);
+                String loreText = getNameOrLoreText(stack);
                 if (loreText != null && !loreText.isEmpty()) {
                     Matcher m = pattern.matcher(loreText);
                     if (m.find()) {
                         try {
                             int num = Integer.parseInt(m.group(1));
-                            if (num == number) {
-                                return i;
-                            }
-                        } catch (NumberFormatException ignored) {}
+                            if (num == number) return i;
+                        } catch (NumberFormatException ignored) { }
                     }
                 }
             }
@@ -266,7 +294,13 @@ public class AnarchyExecutor {
         return -1;
     }
 
+    private static int getContainerSlotCount(HandledScreen<?> screen) {
+        return Math.max(0, screen.getScreenHandler().slots.size() - 36);
+    }
+
     private static void clickSlot(HandledScreen<?> screen, int slot) {
+        MinecraftClient client = client();
+        if (client.interactionManager == null || client.player == null) return;
         client.interactionManager.clickSlot(
                 screen.getScreenHandler().syncId,
                 slot,
@@ -285,66 +319,66 @@ public class AnarchyExecutor {
         };
     }
 
-    private static String readNbt(ItemStack stack, String key) {
-        if (!stack.hasNbt()) return null;
-        NbtCompound root = stack.getNbt();
-        if (root != null && root.contains("PublicBukkitValues")) {
-            NbtCompound values = root.getCompound("PublicBukkitValues");
-            String val = values.getString(key);
-            return val.isEmpty() ? null : val;
-        }
-        return null;
+    private static String readCustomData(ItemStack stack, String key) {
+        NbtComponent customData = stack.get(DataComponentTypes.CUSTOM_DATA);
+        if (customData == null || customData.isEmpty()) return null;
+
+        NbtCompound root = customData.copyNbt();
+        return root.getCompound("PublicBukkitValues")
+                .flatMap(values -> values.getString(key))
+                .filter(value -> !value.isEmpty())
+                .orElse(null);
     }
 
-    private static String getLoreText(ItemStack stack) {
-        if (!stack.hasNbt()) return null;
-        NbtCompound display = stack.getNbt().getCompound("display");
-        if (display == null) return null;
+    private static String getNameOrLoreText(ItemStack stack) {
+        StringBuilder text = new StringBuilder();
 
-        if (display.contains("Name")) {
-            String nameRaw = display.getString("Name");
-            try {
-                Text parsed = Serializer.fromJson(nameRaw);
-                if (parsed != null) {
-                    String nameText = parsed.getString();
-                    if (nameText != null && !nameText.isEmpty()) {
-                        return nameText;
-                    }
-                }
-            } catch (Exception ignored) {}
+        String name = stack.getName().getString();
+        if (name != null && !name.isBlank()) {
+            text.append(name);
         }
 
-        if (!display.contains("Lore")) return null;
-        var loreList = display.getList("Lore", 8);
-        if (loreList.isEmpty()) return null;
-
-        StringBuilder fullText = new StringBuilder();
-        for (int i = 0; i < loreList.size(); i++) {
-            String raw = loreList.getString(i);
-            try {
-                Text parsed = Serializer.fromJson(raw);
-                if (parsed != null) {
-                    fullText.append(parsed.getString());
-                } else {
-                    fullText.append(raw);
-                }
-            } catch (Exception e) {
-                fullText.append(raw);
+        LoreComponent lore = stack.get(DataComponentTypes.LORE);
+        if (lore != null) {
+            for (Text line : lore.lines()) {
+                String value = line.getString();
+                if (value == null || value.isBlank()) continue;
+                if (!text.isEmpty()) text.append(' ');
+                text.append(value);
             }
-            if (i < loreList.size() - 1) fullText.append(" ");
         }
-        String result = fullText.toString().trim();
+
+        String result = text.toString().trim();
         return result.isEmpty() ? null : result;
     }
 
     private static void finishSuccess() {
         HubSwap.getStats().recordSwitch(mode, targetNumber);
-        HubSwap.saveStats();
+        HubSwap.getStats().onServerChange(mode);
         NotificationRenderer.showNotification("Успешный переход на " + mode + " #" + targetNumber);
         reset();
     }
 
+    private static ModConfig.ModeConfig getModeSafely(String modeName) {
+        try {
+            return HubSwap.getConfig().getMode(modeName);
+        } catch (IllegalArgumentException e) {
+            sendError(e.getMessage());
+            return null;
+        }
+    }
+
+    private static String normalizeMode(String modeName) {
+        if (modeName == null) return "lite";
+        return switch (modeName.toLowerCase(Locale.ROOT)) {
+            case "light" -> "lite";
+            case "light120" -> "lite120";
+            default -> modeName.toLowerCase(Locale.ROOT);
+        };
+    }
+
     private static void sendError(String msg) {
+        MinecraftClient client = client();
         if (client.player != null) {
             client.player.sendMessage(Text.literal("[HubSwap] Ошибка: " + msg), false);
         }

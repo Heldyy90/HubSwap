@@ -6,8 +6,11 @@ import urllib.request
 import urllib.error
 from datetime import datetime, timezone
 
-OWNER = "Heldyy90"
-REPO = "HubSwap"
+repository = os.environ.get("GITHUB_REPOSITORY", "HolyWorldWEB/HubSwap")
+if "/" in repository:
+    OWNER, REPO = repository.split("/", 1)
+else:
+    OWNER, REPO = "HolyWorldWEB", "HubSwap"
 
 README_PATH = "README.md"
 STATS_PATH = "STATS.md"
@@ -201,7 +204,7 @@ def replace_block(text: str, block: str) -> str:
     if pattern.search(text):
         return pattern.sub(block, text)
 
-    marker = "\n\n## ✨ Возможности"
+    marker = "\n\n## 🔧 Возможности"
 
     if marker in text:
         return text.replace(marker, "\n\n" + block + marker, 1)
@@ -226,11 +229,14 @@ def main():
         with open(STATS_PATH, "w", encoding="utf-8", newline="\n") as file:
             file.write(stats_md)
 
-        print("HubSwap stats updated successfully.")
+        print(f"HubSwap stats updated successfully for {OWNER}/{REPO}.")
 
     except urllib.error.HTTPError as error:
         print(f"GitHub API error: {error.code} {error.reason}", file=sys.stderr)
         print(error.read().decode("utf-8", errors="replace"), file=sys.stderr)
+        sys.exit(1)
+    except urllib.error.URLError as error:
+        print(f"GitHub API connection error: {error.reason}", file=sys.stderr)
         sys.exit(1)
 
 
