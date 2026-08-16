@@ -43,7 +43,7 @@ public class UpdateChecker {
 
                 String latestVersion = normalizeVersion(latest.tagName);
                 if (isNewerVersion(latestVersion, currentVersion)) {
-                    sendUpdateMessage(latest.tagName, safeReleaseUrl(latest.htmlUrl));
+                    sendUpdateMessage(latest.tagName, safeReleaseUri(latest.htmlUrl));
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -84,9 +84,7 @@ public class UpdateChecker {
                     new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8)
             )) {
                 String line;
-                while ((line = reader.readLine()) != null) {
-                    response.append(line);
-                }
+                while ((line = reader.readLine()) != null) response.append(line);
             }
 
             JsonObject json = JsonParser.parseString(response.toString()).getAsJsonObject();
@@ -95,7 +93,7 @@ public class UpdateChecker {
             String htmlUrl = json.has("html_url") && !json.get("html_url").isJsonNull()
                     ? json.get("html_url").getAsString() : REPO_URL;
 
-            return new ReleaseInfo(tagName, safeReleaseUrl(htmlUrl));
+            return new ReleaseInfo(tagName, safeReleaseUri(htmlUrl).toString());
         } finally {
             connection.disconnect();
         }
@@ -105,13 +103,11 @@ public class UpdateChecker {
         if (stream == null) return;
         try (InputStream ignored = stream) {
             byte[] buffer = new byte[1024];
-            while (ignored.read(buffer) != -1) {
-                // consume response body
-            }
+            while (ignored.read(buffer) != -1) { }
         } catch (Exception ignored) { }
     }
 
-    private static void sendUpdateMessage(String latestVersion, String url) {
+    private static void sendUpdateMessage(String latestVersion, URI uri) {
         MinecraftClient client = MinecraftClient.getInstance();
 
         client.execute(() -> {
@@ -129,9 +125,8 @@ public class UpdateChecker {
                     .styled(style -> style
                             .withColor(Formatting.AQUA)
                             .withUnderline(true)
-                            .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, safeReleaseUrl(url)))
-                            .withHoverEvent(new HoverEvent(
-                                    HoverEvent.Action.SHOW_TEXT,
+                            .withClickEvent(new ClickEvent.OpenUrl(uri))
+                            .withHoverEvent(new HoverEvent.ShowText(
                                     Text.literal("Открыть страницу релиза HubSwap")
                             ))
                     );
@@ -140,18 +135,19 @@ public class UpdateChecker {
         });
     }
 
-    private static String safeReleaseUrl(String value) {
-        if (value == null || value.isBlank()) return REPO_URL;
+    private static URI safeReleaseUri(String value) {
+        URI fallback = URI.create(REPO_URL);
+        if (value == null || value.isBlank()) return fallback;
         try {
             URI uri = URI.create(value.trim());
-            if (!"https".equalsIgnoreCase(uri.getScheme())) return REPO_URL;
+            if (!"https".equalsIgnoreCase(uri.getScheme())) return fallback;
             String host = uri.getHost();
-            if (host == null || !host.equalsIgnoreCase("github.com")) return REPO_URL;
+            if (host == null || !host.equalsIgnoreCase("github.com")) return fallback;
             String path = uri.getPath();
-            if (path == null || !path.startsWith("/HolyWorldWEB/HubSwap/")) return REPO_URL;
-            return uri.toString();
+            if (path == null || !path.startsWith("/HolyWorldWEB/HubSwap/")) return fallback;
+            return uri;
         } catch (IllegalArgumentException e) {
-            return REPO_URL;
+            return fallback;
         }
     }
 
@@ -205,6 +201,5 @@ public class UpdateChecker {
         return result;
     }
 
-    private record ReleaseInfo(String tagName, String htmlUrl) {
-    }
+    private record ReleaseInfo(String tagName, String htmlUrl) { }
 }
