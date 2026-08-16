@@ -1,43 +1,17 @@
 package ru.heldyy.hubswap.config;
 
 import com.google.gson.annotations.Expose;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
 import java.util.ArrayList;
 import java.util.List;
 
+
 public class ModConfig {
-    @Expose
-    private int classicDelay = 1500;
-
-    @Expose
-    private int clickDelay = 200;
-
-    @Expose
-    private String classicCommand = "cn";
-
-    @Expose
-    private String lightCommand = "ln";
-
-    @Expose
-    private String light120Command = "ln120";
-
-    @Expose
-    private String primeCommand = "pn";
-
-    @Expose
-    private String hiddenRemoteNoticeFingerprint = "";
-
+    // ===== ОБЩИЕ НАСТРОЙКИ =====
     @Expose
     private boolean notificationsEnabled = true;
-
-    @Expose
-    private boolean remoteNoticesEnabled = true;
-
-    @Expose
-    private boolean smartAutoTuneEnabled = true;
 
     @Expose
     private ColorTheme colorTheme = ColorTheme.AQUA;
@@ -46,25 +20,92 @@ public class ModConfig {
     private Formatting linkColor = Formatting.GOLD;
 
     @Expose
-    private int learnedHubOffset = 0;
+    private int timeoutTicks = 200; // таймаут в тиках (~10 сек)
+
+    // ===== РЕЖИМЫ =====
+    // Каждый режим имеет свои алиасы и диапазоны
 
     @Expose
-    private int learnedClickOffset = 200;
+    private ModeConfig lite = new ModeConfig(
+            "lite",
+            List.of("an", "ан", "ft"),
+            new RangeConfig(List.of(
+                    new RangeEntry("solo", "Соло", 1, 17),
+                    new RangeEntry("duo", "Дуо", 18, 38),
+                    new RangeEntry("trio", "Трио", 39, 57),
+                    new RangeEntry("clans", "Кланы", 58, 74)
+            ), 74)
+    );
 
     @Expose
-    private int bestClickDelay = 0;
+    private ModeConfig lite120 = new ModeConfig(
+            "lite120",
+            List.of(),
+            new RangeConfig(List.of(
+                    new RangeEntry("all", "Все", 1, 3)
+            ), 3)
+    );
 
     @Expose
-    private int minClickDelayFloor = 20;
+    private ModeConfig classic = new ModeConfig(
+            "classic",
+            List.of("cn"),
+            new RangeConfig(List.of(
+                    new RangeEntry("all", "Все", 1, 3)
+            ), 3)
+    );
 
     @Expose
-    private int successStreak = 0;
+    private ModeConfig prime = new ModeConfig(
+            "prime",
+            List.of("pm"),
+            new RangeConfig(List.of(
+                    new RangeEntry("all", "Все", 1, 9)
+            ), 9)
+    );
 
-    @Expose
-    private int failStreak = 0;
-
+    // ===== ХОТКЕИ =====
     @Expose
     private List<HotkeySlot> hotkeySlots = createDefaultHotkeySlots();
+
+    // ===== КОНСТРУКТОРЫ И ГЕТТЕРЫ =====
+
+    public ModConfig() {}
+
+    // --- Общие ---
+    public boolean isNotificationsEnabled() { return notificationsEnabled; }
+    public void setNotificationsEnabled(boolean enabled) { this.notificationsEnabled = enabled; }
+
+    public ColorTheme getColorTheme() { return colorTheme; }
+    public void setColorTheme(ColorTheme theme) { this.colorTheme = theme != null ? theme : ColorTheme.AQUA; }
+
+    public Formatting getLinkColor() { return linkColor; }
+    public void setLinkColor(Formatting color) { this.linkColor = color != null ? color : Formatting.GOLD; }
+
+    public int getTimeoutTicks() { return timeoutTicks; }
+    public void setTimeoutTicks(int ticks) { this.timeoutTicks = Math.max(20, Math.min(600, ticks)); }
+
+    // --- Режимы ---
+    public ModeConfig getLite() { return lite; }
+    public ModeConfig getLite120() { return lite120; }
+    public ModeConfig getClassic() { return classic; }
+    public ModeConfig getPrime() { return prime; }
+
+    public ModeConfig getMode(String modeName) {
+        return switch (modeName.toLowerCase()) {
+            case "lite" -> lite;
+            case "lite120" -> lite120;
+            case "classic" -> classic;
+            case "prime" -> prime;
+            default -> throw new IllegalArgumentException("Неизвестный режим: " + modeName);
+        };
+    }
+
+    // --- Хоткеи ---
+    public List<HotkeySlot> getHotkeySlots() {
+        while (hotkeySlots.size() < 8) hotkeySlots.add(new HotkeySlot());
+        return hotkeySlots;
+    }
 
     private static List<HotkeySlot> createDefaultHotkeySlots() {
         List<HotkeySlot> list = new ArrayList<>();
@@ -74,254 +115,95 @@ public class ModConfig {
         return list;
     }
 
-    public List<HotkeySlot> getHotkeySlots() {
-        while (hotkeySlots.size() < 8) hotkeySlots.add(new HotkeySlot());
-        return hotkeySlots;
-    }
+    // ===== ВЛОЖЕННЫЕ КЛАССЫ =====
 
-    public int getClassicDelay() {
-        return classicDelay;
-    }
+    public static class ModeConfig {
+        @Expose
+        private final String id; // идентификатор (lite, lite120, classic, prime)
 
-    public int getClickDelay() {
-        return clickDelay;
-    }
+        @Expose
+        private List<String> aliases;
 
-    public String getClassicCommand() {
-        return classicCommand;
-    }
+        @Expose
+        private RangeConfig ranges;
 
-    public String getLightCommand() {
-        return lightCommand;
-    }
-
-    public String getLight120Command() {
-        return light120Command;
-    }
-
-    public String getPrimeCommand() {
-        return primeCommand;
-    }
-
-    public String getHiddenRemoteNoticeFingerprint() {
-        return hiddenRemoteNoticeFingerprint == null ? "" : hiddenRemoteNoticeFingerprint;
-    }
-
-    public boolean isNotificationsEnabled() {
-        return notificationsEnabled;
-    }
-
-    public boolean isRemoteNoticesEnabled() {
-        return remoteNoticesEnabled;
-    }
-
-    public boolean isSmartAutoTuneEnabled() {
-        return smartAutoTuneEnabled;
-    }
-
-    public ColorTheme getColorTheme() {
-        return colorTheme;
-    }
-
-    public Formatting getLinkColor() {
-        return linkColor;
-    }
-
-    public int getLearnedHubOffset() {
-        return learnedHubOffset;
-    }
-
-    public int getLearnedClickOffset() {
-        return learnedClickOffset;
-    }
-
-    public int getAutoTunedClickDelay() {
-        if (learnedClickOffset <= 0) {
-            learnedClickOffset = 200;
+        // Для десериализации Gson нужен конструктор без аргументов
+        public ModeConfig() {
+            this.id = "unknown";
+            this.aliases = new ArrayList<>();
+            this.ranges = new RangeConfig();
         }
-        learnedClickOffset = roundToStep(clamp(learnedClickOffset, 20, 1000), 5);
-        return learnedClickOffset;
+
+        public ModeConfig(String id, List<String> aliases, RangeConfig ranges) {
+            this.id = id;
+            this.aliases = new ArrayList<>(aliases);
+            this.ranges = ranges;
+        }
+
+        public String getId() { return id; }
+        public List<String> getAliases() { return aliases; }
+        public void setAliases(List<String> aliases) {
+            this.aliases = new ArrayList<>(aliases);
+        }
+        public RangeConfig getRanges() { return ranges; }
+        public void setRanges(RangeConfig ranges) { this.ranges = ranges; }
     }
 
-    public int getBestClickDelay() {
-        return bestClickDelay;
-    }
+    public static class RangeConfig {
+        @Expose
+        private List<RangeEntry> entries;
 
-    public int getMinClickDelayFloor() {
-        return minClickDelayFloor;
-    }
+        @Expose
+        private int total;
 
-    public int getSuccessStreak() {
-        return successStreak;
-    }
+        public RangeConfig() {
+            this.entries = new ArrayList<>();
+            this.total = 1;
+        }
 
-    public int getFailStreak() {
-        return failStreak;
-    }
+        public RangeConfig(List<RangeEntry> entries, int total) {
+            this.entries = new ArrayList<>(entries);
+            this.total = Math.max(1, total);
+        }
 
-    public void setDelays(int classicDelay, int clickDelay) {
-        this.classicDelay = clamp(classicDelay, 100, 5000);
-        this.clickDelay = clamp(clickDelay, 50, 1000);
-    }
+        public List<RangeEntry> getEntries() { return entries; }
+        public void setEntries(List<RangeEntry> entries) { this.entries = new ArrayList<>(entries); }
+        public int getTotal() { return total; }
+        public void setTotal(int total) { this.total = Math.max(1, total); }
 
-    public void setCommands(String classicCommand, String lightCommand, String light120Command, String primeCommand) {
-        this.classicCommand = validateCommand(classicCommand, "cn");
-        this.lightCommand = validateCommand(lightCommand, "ln");
-        this.light120Command = validateCommand(light120Command, "ln120");
-        this.primeCommand = validateCommand(primeCommand, "pn");
-    }
-
-    public void setCommands(String classicCommand, String lightCommand, String light120Command) {
-        setCommands(classicCommand, lightCommand, light120Command, this.primeCommand);
-    }
-
-    public void setHiddenRemoteNoticeFingerprint(String fingerprint) {
-        this.hiddenRemoteNoticeFingerprint = fingerprint == null ? "" : fingerprint.trim();
-    }
-
-    public void setNotificationsEnabled(boolean enabled) {
-        this.notificationsEnabled = enabled;
-    }
-
-    public void setRemoteNoticesEnabled(boolean enabled) {
-        this.remoteNoticesEnabled = enabled;
-    }
-
-    public void setSmartAutoTuneEnabled(boolean enabled) {
-        this.smartAutoTuneEnabled = enabled;
-    }
-
-    public void setColorTheme(ColorTheme theme) {
-        this.colorTheme = theme == null ? ColorTheme.AQUA : theme;
-    }
-
-    public void setLinkColor(Formatting color) {
-        this.linkColor = color == null ? Formatting.GOLD : color;
-    }
-
-    public void recordSuccess() {
-        recordSuccess(true);
-    }
-
-    public void recordSuccess(boolean learnHubOffset) {
-        normalizeAutoTuneState();
-
-        failStreak = 0;
-        successStreak = Math.min(100, successStreak + 1);
-
-        
-        
-        
-        if (successStreak >= 2) {
-            if (learnHubOffset) {
-                learnedHubOffset = Math.max(0, learnedHubOffset - 50);
+        public RangeEntry find(int number) {
+            for (RangeEntry e : entries) {
+                if (number >= e.min && number <= e.max) return e;
             }
-
-            int currentDelay = getAutoTunedClickDelay();
-            if (bestClickDelay <= 0 || currentDelay < bestClickDelay) {
-                bestClickDelay = currentDelay;
-            }
-
-            boolean hasSafetyFloor = minClickDelayFloor > 20;
-            if (hasSafetyFloor && currentDelay <= minClickDelayFloor + 5) {
-                
-                minClickDelayFloor = roundToStep(clamp(minClickDelayFloor - 15, 20, 1000), 5);
-            }
-
-            int decreaseStep = hasSafetyFloor ? 10 : 30;
-            int nextDelay = currentDelay - decreaseStep;
-            nextDelay = Math.max(nextDelay, minClickDelayFloor);
-            nextDelay = Math.max(nextDelay, 20);
-
-            learnedClickOffset = roundToStep(clamp(nextDelay, 20, 1000), 5);
-            successStreak = 0;
+            return null;
         }
+
+        public int getMin() { return 1; }
+        public int getMax() { return total; }
+        public boolean isValid(int number) { return number >= 1 && number <= total; }
     }
 
-    public void recordFailure() {
-        recordFailure(true);
-    }
+    public static class RangeEntry {
+        @Expose
+        public String key;
 
-    public void recordFailure(boolean learnHubOffset) {
-        normalizeAutoTuneState();
+        @Expose
+        public String name;
 
-        successStreak = 0;
-        failStreak = Math.min(100, failStreak + 1);
+        @Expose
+        public int min;
 
-        if (learnHubOffset) {
-            learnedHubOffset = clamp(learnedHubOffset + 100 + (failStreak >= 2 ? 50 : 0), 0, 1500);
+        @Expose
+        public int max;
+
+        public RangeEntry() {}
+
+        public RangeEntry(String key, String name, int min, int max) {
+            this.key = key;
+            this.name = name;
+            this.min = min;
+            this.max = max;
         }
-
-        int currentDelay = getAutoTunedClickDelay();
-        int clickIncrease = failStreak == 1 ? 20 : 25;
-        int safetyMargin = failStreak == 1 ? 10 : 15;
-
-        
-        
-        minClickDelayFloor = roundToStep(clamp(Math.max(minClickDelayFloor, currentDelay + safetyMargin), 20, 1000), 5);
-
-        int targetDelay = currentDelay + clickIncrease;
-        if (bestClickDelay > 0) {
-            targetDelay = Math.max(targetDelay, bestClickDelay + 20);
-        }
-        targetDelay = Math.max(targetDelay, minClickDelayFloor);
-
-        learnedClickOffset = roundToStep(clamp(targetDelay, 20, 1000), 5);
-    }
-
-    private void normalizeAutoTuneState() {
-        learnedClickOffset = roundToStep(clamp(learnedClickOffset <= 0 ? 200 : learnedClickOffset, 20, 1000), 5);
-        minClickDelayFloor = roundToStep(clamp(minClickDelayFloor, 20, 1000), 5);
-
-        
-        
-        
-        
-        if (bestClickDelay > 0 && minClickDelayFloor > bestClickDelay + 60) {
-            bestClickDelay = 0;
-        }
-
-        if (minClickDelayFloor > learnedClickOffset) {
-            minClickDelayFloor = learnedClickOffset;
-        }
-    }
-
-    private int clamp(int value, int min, int max) {
-        return Math.max(min, Math.min(max, value));
-    }
-
-    private int roundToStep(int value, int step) {
-        if (step <= 1) {
-            return value;
-        }
-        return Math.round(value / (float) step) * step;
-    }
-
-    private String validateCommand(String command, String defaultCommand) {
-        if (command == null || command.trim().isEmpty()) {
-            MinecraftClient client = MinecraftClient.getInstance();
-            if (client != null) {
-                client.execute(() -> {
-                    if (client.player != null) {
-                        client.player.sendMessage(
-                                Text.literal("[HubSwap] Используется команда по умолчанию: " + defaultCommand),
-                                false
-                        );
-                    }
-                });
-            }
-            return defaultCommand;
-        }
-
-        String cleaned = command.trim()
-                .replace("/", "")
-                .replaceAll("[^a-zA-Z0-9_а-яА-ЯёЁ]", "");
-
-        if (cleaned.length() > 10) {
-            cleaned = cleaned.substring(0, 10);
-        }
-
-        return cleaned.isEmpty() ? defaultCommand : cleaned;
     }
 
     public enum ColorTheme {
@@ -342,17 +224,9 @@ public class ModConfig {
             this.rgbColor = rgbColor;
         }
 
-        public String getDisplayName() {
-            return displayName;
-        }
-
-        public Formatting getFormatting() {
-            return formatting;
-        }
-
-        public int getRgbColor() {
-            return rgbColor;
-        }
+        public String getDisplayName() { return displayName; }
+        public Formatting getFormatting() { return formatting; }
+        public int getRgbColor() { return rgbColor; }
 
         public ColorTheme next() {
             ColorTheme[] values = values();

@@ -6,6 +6,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import ru.heldyy.hubswap.HubSwap;
+import ru.heldyy.hubswap.executor.AnarchyExecutor;
 import ru.heldyy.hubswap.gui.TransitionDetector;
 import ru.heldyy.hubswap.linkify.ServerLinkifier;
 
@@ -13,14 +14,31 @@ import ru.heldyy.hubswap.linkify.ServerLinkifier;
 public class ChatHudMixin {
 
     @ModifyVariable(
+            method = "addMessage(Lnet/minecraft/text/Text;)V",
+            at = @At("HEAD"),
+            argsOnly = true,
+            require = 0
+    )
+    private Text hubswap$processMessage1(Text message) {
+        if (message != null) {
+            String msg = message.getString();
+            TransitionDetector.onChatMessage(msg);
+            AnarchyExecutor.onChatMessage(msg);
+        }
+        return ServerLinkifier.linkify(message, HubSwap.getConfig());
+    }
+
+    @ModifyVariable(
             method = "addMessage(Lnet/minecraft/text/Text;Lnet/minecraft/network/message/MessageSignatureData;Lnet/minecraft/client/gui/hud/MessageIndicator;)V",
             at = @At("HEAD"),
             argsOnly = true,
             require = 0
     )
-    private Text hubswap$processMessage(Text message) {
+    private Text hubswap$processMessage2(Text message) {
         if (message != null) {
-            TransitionDetector.onChatMessage(message.getString());
+            String msg = message.getString();
+            TransitionDetector.onChatMessage(msg);
+            AnarchyExecutor.onChatMessage(msg);
         }
         return ServerLinkifier.linkify(message, HubSwap.getConfig());
     }
