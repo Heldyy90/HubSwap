@@ -127,7 +127,7 @@ public class ServerLinkifier {
 
             String baseCmd = switch (mode) {
                 case "classic" -> "cn";
-                case "prime" -> "pm";
+                case "prime" -> "pn";
                 case "lite120" -> "ln120";
                 default -> "ln";
             };
@@ -139,9 +139,8 @@ public class ServerLinkifier {
                     .withItalic(baseStyle.isItalic())
                     .withUnderline(true)
                     .withColor(linkColor)
-                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, command))
-                    .withHoverEvent(new HoverEvent(
-                            HoverEvent.Action.SHOW_TEXT,
+                    .withClickEvent(new ClickEvent.RunCommand(command))
+                    .withHoverEvent(new HoverEvent.ShowText(
                             Text.literal("Нажмите: ").formatted(Formatting.GRAY)
                                     .append(Text.literal(command).formatted(linkColor))
                     ));
