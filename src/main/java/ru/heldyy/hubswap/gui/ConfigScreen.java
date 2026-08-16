@@ -6,6 +6,7 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.client.input.KeyInput;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import ru.heldyy.hubswap.HubSwap;
@@ -29,20 +30,17 @@ public class ConfigScreen extends Screen {
     private Tab currentTab = Tab.GENERAL;
     private ButtonWidget tabGeneral, tabModes, tabRanges, tabHotkeys, tabStats;
 
-    // Общие настройки
     private boolean notificationsEnabledTmp;
     private ModConfig.ColorTheme currentTheme;
     private Formatting currentLinkColor;
     private int timeoutTicksTmp;
     private TextFieldWidget timeoutField;
 
-    // Настройки режимов (алиасы)
     private TextFieldWidget liteAliasesField;
     private TextFieldWidget lite120AliasesField;
     private TextFieldWidget classicAliasesField;
     private TextFieldWidget primeAliasesField;
 
-    // Настройки диапазонов
     private TextFieldWidget liteTotalField;
     private TextFieldWidget liteSoloMin, liteSoloMax;
     private TextFieldWidget liteDuoMin, liteDuoMax;
@@ -52,7 +50,6 @@ public class ConfigScreen extends Screen {
     private TextFieldWidget classicTotalField;
     private TextFieldWidget primeTotalField;
 
-    // Хоткеи
     private List<HotkeySlot> hotkeyTmp;
     private int listeningSlot = -1;
     private final List<ButtonWidget> hotkeyKeyBtns = new ArrayList<>();
@@ -60,21 +57,16 @@ public class ConfigScreen extends Screen {
     private final List<TextFieldWidget> hotkeyNumFields = new ArrayList<>();
     private final List<ButtonWidget> hotkeyToggleBtns = new ArrayList<>();
 
-    // Кнопки
     private ButtonWidget notificationsToggleButton;
     private ButtonWidget themeToggleButton;
     private ButtonWidget linkColorToggleButton;
     private ButtonWidget saveButton;
     private ButtonWidget cancelButton;
 
-    // Анимация
     private float backgroundAlpha = 0.0f;
     private float contentOffset = 20.0f;
 
-    // Layout
     private int margin, panelW, lx, rx, colW, contentY, footerY;
-
-    // Группы виджетов для управления видимостью
     private List<WidgetGroup> groups = new ArrayList<>();
 
     public ConfigScreen(Screen parent) {
@@ -103,15 +95,11 @@ public class ConfigScreen extends Screen {
     @Override
     protected void init() {
         recalcLayout();
-        // Создаём все виджеты сразу
         buildAllWidgets();
-        // Показываем текущую вкладку
         showTab(Tab.GENERAL);
     }
 
     private void buildAllWidgets() {
-        // Создаём все виджеты без привязки к вкладкам, добавляем их в группы для управления видимостью
-        // Сначала очищаем списки
         clearChildren();
         hotkeyKeyBtns.clear();
         hotkeyModeBtns.clear();
@@ -119,25 +107,23 @@ public class ConfigScreen extends Screen {
         hotkeyToggleBtns.clear();
         groups.clear();
 
-        // Создаём постоянные кнопки вкладок и кнопки сохранения/отмены
         buildPersistentWidgets();
 
-        // ---- Вкладка GENERAL ----
         {
             List<ClickableWidget> widgets = new ArrayList<>();
             int sp = Math.min(52, (footerY - contentY) / 4);
             int fh = 20;
-            timeoutField = addField(lx, contentY + 0, colW, fh, String.valueOf(timeoutTicksTmp), 4);
+            timeoutField = addField(lx, contentY, colW, fh, String.valueOf(timeoutTicksTmp), 4);
             widgets.add(timeoutField);
 
             notificationsToggleButton = addDrawableChild(ButtonWidget.builder(getNotificationButtonText(),
                             btn -> { notificationsEnabledTmp = !notificationsEnabledTmp; btn.setMessage(getNotificationButtonText()); })
-                    .dimensions(rx, contentY + 0, colW, fh).build());
+                    .dimensions(rx, contentY, colW, fh).build());
             widgets.add(notificationsToggleButton);
 
             themeToggleButton = addDrawableChild(ButtonWidget.builder(getThemeButtonText(),
                             btn -> { currentTheme = currentTheme.next(); btn.setMessage(getThemeButtonText()); })
-                    .dimensions(rx, contentY + sp * 1, colW, fh).build());
+                    .dimensions(rx, contentY + sp, colW, fh).build());
             widgets.add(themeToggleButton);
 
             linkColorToggleButton = addDrawableChild(ButtonWidget.builder(getLinkColorButtonText(),
@@ -148,22 +134,19 @@ public class ConfigScreen extends Screen {
             groups.add(new WidgetGroup(widgets));
         }
 
-        // ---- Вкладка MODES (алиасы) ----
         {
             List<ClickableWidget> widgets = new ArrayList<>();
             int sp = Math.min(40, (footerY - contentY) / 6);
             int fh = 20;
 
-            // Создаём поля и подписи как виджеты
-            // Для подписей используем ButtonWidget с отключенным действием
-            ButtonWidget label1 = addStaticLabel(contentY + 0 - 22, "Lite алиасы (через запятую):", lx);
+            ButtonWidget label1 = addStaticLabel(contentY - 22, "Lite алиасы (через запятую):", lx);
             widgets.add(label1);
-            liteAliasesField = addField(lx, contentY + 0, panelW, fh, String.join(", ", config.getLite().getAliases()), 100);
+            liteAliasesField = addField(lx, contentY, panelW, fh, String.join(", ", config.getLite().getAliases()), 100);
             widgets.add(liteAliasesField);
 
-            ButtonWidget label2 = addStaticLabel(contentY + sp * 1 + 4 - 22, "Lite120 алиасы:", lx);
+            ButtonWidget label2 = addStaticLabel(contentY + sp + 4 - 22, "Lite120 алиасы:", lx);
             widgets.add(label2);
-            lite120AliasesField = addField(lx, contentY + sp * 1 + 4, panelW, fh, String.join(", ", config.getLite120().getAliases()), 100);
+            lite120AliasesField = addField(lx, contentY + sp + 4, panelW, fh, String.join(", ", config.getLite120().getAliases()), 100);
             widgets.add(lite120AliasesField);
 
             ButtonWidget label3 = addStaticLabel(contentY + sp * 2 + 8 - 22, "Classic алиасы:", lx);
@@ -179,7 +162,6 @@ public class ConfigScreen extends Screen {
             groups.add(new WidgetGroup(widgets));
         }
 
-        // ---- Вкладка RANGES ----
         {
             List<ClickableWidget> widgets = new ArrayList<>();
             int fh = 20;
@@ -189,14 +171,12 @@ public class ConfigScreen extends Screen {
             int fieldWidth = 60;
             int gapBetweenMinMax = 20;
 
-            // Lite total
             ButtonWidget labelLiteTotal = addStaticLabel(y, "Lite всего:", labelX);
             widgets.add(labelLiteTotal);
             liteTotalField = addField(fieldX, y, fieldWidth, fh, String.valueOf(config.getLite().getRanges().getTotal()), 3);
             widgets.add(liteTotalField);
             y += fh + 16;
 
-            // Заголовки колонок
             ButtonWidget hdrRange = addStaticLabel(y, "Диапазон", labelX);
             widgets.add(hdrRange);
             ButtonWidget hdrMin = addStaticLabel(y, "Min", fieldX - 90);
@@ -205,7 +185,6 @@ public class ConfigScreen extends Screen {
             widgets.add(hdrMax);
             y += 18;
 
-            // Строки Solo, Duo, Trio, Clan
             List<ModConfig.RangeEntry> entries = config.getLite().getRanges().getEntries();
             String[] keys = {"solo", "duo", "trio", "clans"};
             String[] names = {"Solo", "Duo", "Trio", "Clan"};
@@ -216,7 +195,7 @@ public class ConfigScreen extends Screen {
             for (int i = 0; i < 4; i++) {
                 ModConfig.RangeEntry entry = null;
                 for (ModConfig.RangeEntry e : entries) {
-                    if (e.key.equals(keys[i])) {
+                    if (e != null && keys[i].equals(e.key)) {
                         entry = e;
                         break;
                     }
@@ -243,31 +222,26 @@ public class ConfigScreen extends Screen {
 
             y += 4 * (fh + 4) + 20;
 
-            // Lite120 total
             ButtonWidget lblLite120 = addStaticLabel(y, "Lite 1.20 всего:", labelX);
             widgets.add(lblLite120);
             lite120TotalField = addField(fieldX, y, fieldWidth, fh, String.valueOf(config.getLite120().getRanges().getTotal()), 3);
             widgets.add(lite120TotalField);
             y += fh + 16;
 
-            // Classic total
             ButtonWidget lblClassic = addStaticLabel(y, "Classic всего:", labelX);
             widgets.add(lblClassic);
             classicTotalField = addField(fieldX, y, fieldWidth, fh, String.valueOf(config.getClassic().getRanges().getTotal()), 3);
             widgets.add(classicTotalField);
             y += fh + 16;
 
-            // Prime total
             ButtonWidget lblPrime = addStaticLabel(y, "Prime всего:", labelX);
             widgets.add(lblPrime);
             primeTotalField = addField(fieldX, y, fieldWidth, fh, String.valueOf(config.getPrime().getRanges().getTotal()), 3);
             widgets.add(primeTotalField);
-            y += fh + 16;
 
             groups.add(new WidgetGroup(widgets));
         }
 
-        // ---- Вкладка HOTKEYS ----
         {
             List<ClickableWidget> widgets = new ArrayList<>();
             int rowH   = Math.min(20, (footerY - contentY - 30) / 9);
@@ -330,11 +304,8 @@ public class ConfigScreen extends Screen {
             groups.add(new WidgetGroup(widgets));
         }
 
-        // ---- Вкладка STATS ----
-        // В stats нет виджетов, только рендер, поэтому группа пустая
         groups.add(new WidgetGroup(new ArrayList<>()));
 
-        // По умолчанию все группы скрыты, показываем первую (GENERAL)
         for (int i = 0; i < groups.size(); i++) {
             groups.get(i).setVisible(i == 0);
         }
@@ -346,18 +317,18 @@ public class ConfigScreen extends Screen {
         int tabW = Math.min(80, panelW / 5 - 4);
 
         tabGeneral = addDrawableChild(ButtonWidget.builder(Text.literal("⚙ Основные"), b -> switchTab(Tab.GENERAL))
-                .dimensions(cx - tabW * 2 - 6 - 2, tabY, tabW, 18).build());
-        tabModes   = addDrawableChild(ButtonWidget.builder(Text.literal("📌 Режимы"),   b -> switchTab(Tab.MODES))
-                .dimensions(cx - tabW - 3,          tabY, tabW, 18).build());
+                .dimensions(cx - tabW * 2 - 8, tabY, tabW, 18).build());
+        tabModes   = addDrawableChild(ButtonWidget.builder(Text.literal("📌 Режимы"), b -> switchTab(Tab.MODES))
+                .dimensions(cx - tabW - 3, tabY, tabW, 18).build());
         tabRanges  = addDrawableChild(ButtonWidget.builder(Text.literal("📊 Диапазоны"), b -> switchTab(Tab.RANGES))
-                .dimensions(cx + 3,                  tabY, tabW, 18).build());
-        tabHotkeys = addDrawableChild(ButtonWidget.builder(Text.literal("⌨ Хоткеи"),    b -> switchTab(Tab.HOTKEYS))
-                .dimensions(cx + tabW + 6,           tabY, tabW, 18).build());
-        tabStats   = addDrawableChild(ButtonWidget.builder(Text.literal("📊 Стат"),     b -> switchTab(Tab.STATS))
-                .dimensions(cx + tabW * 2 + 9,       tabY, tabW, 18).build());
+                .dimensions(cx + 3, tabY, tabW, 18).build());
+        tabHotkeys = addDrawableChild(ButtonWidget.builder(Text.literal("⌨ Хоткеи"), b -> switchTab(Tab.HOTKEYS))
+                .dimensions(cx + tabW + 6, tabY, tabW, 18).build());
+        tabStats   = addDrawableChild(ButtonWidget.builder(Text.literal("📊 Стат"), b -> switchTab(Tab.STATS))
+                .dimensions(cx + tabW * 2 + 9, tabY, tabW, 18).build());
 
         int btnW = Math.min(150, panelW / 3);
-        saveButton   = addDrawableChild(ButtonWidget.builder(Text.literal("✓ Сохранить"), btn -> onSave())
+        saveButton = addDrawableChild(ButtonWidget.builder(Text.literal("✓ Сохранить"), btn -> onSave())
                 .dimensions(cx - btnW - 4, footerY + 10, btnW, 20).build());
         cancelButton = addDrawableChild(ButtonWidget.builder(Text.literal("✕ Отмена"), btn -> close())
                 .dimensions(cx + 4, footerY + 10, btnW, 20).build());
@@ -372,15 +343,9 @@ public class ConfigScreen extends Screen {
     }
 
     private void showTab(Tab tab) {
-        // Скрываем все группы
-        for (WidgetGroup group : groups) {
-            group.setVisible(false);
-        }
-        // Показываем нужную
-        int idx = tab.ordinal(); // порядок: GENERAL=0, MODES=1, RANGES=2, HOTKEYS=3, STATS=4
-        if (idx >= 0 && idx < groups.size()) {
-            groups.get(idx).setVisible(true);
-        }
+        for (WidgetGroup group : groups) group.setVisible(false);
+        int idx = tab.ordinal();
+        if (idx >= 0 && idx < groups.size()) groups.get(idx).setVisible(true);
         currentTab = tab;
     }
 
@@ -392,28 +357,22 @@ public class ConfigScreen extends Screen {
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         backgroundAlpha = Math.min(1.0f, backgroundAlpha + delta * 2.0f);
-        contentOffset   = Math.max(0.0f, contentOffset   - delta * 60.0f);
+        contentOffset = Math.max(0.0f, contentOffset - delta * 60.0f);
 
         renderGradientBackground(context);
         renderHeaderPanel(context);
         renderFooterPanel(context);
 
-        context.getMatrices().push();
-        context.getMatrices().translate(0, contentOffset, 0);
+        context.getMatrices().pushMatrix();
+        context.getMatrices().translate(0, contentOffset);
 
-        // Рендерим все виджеты (они уже добавлены в children), но рисуем только видимые
-        // Для STATS рендерим дополнительно содержимое
-        if (currentTab == Tab.STATS) {
-            renderStatsTabContent(context);
-        }
-
+        if (currentTab == Tab.STATS) renderStatsTabContent(context);
         super.render(context, mouseX, mouseY, delta);
-        context.getMatrices().pop();
 
+        context.getMatrices().popMatrix();
         renderActiveTabUnderline(context);
     }
 
-    // ---- Статистика ----
     private void renderStatsTabContent(DrawContext context) {
         StatsData stats = HubSwap.getStats();
         int themeRgb = currentTheme.getRgbColor();
@@ -421,8 +380,8 @@ public class ConfigScreen extends Screen {
 
         renderSectionHeader(context, lx, y, panelW, "📊 Переходы", themeRgb);
         y += 16;
-        context.drawText(textRenderer, Text.literal("Всего: " + stats.getTotalSwitches()), lx + 8, y, 0xFFFFFF, true);
-        context.drawText(textRenderer, Text.literal("За сессию: " + stats.getSessionSwitches()), rx, y, 0xFFFFFF, true);
+        context.drawText(textRenderer, Text.literal("Всего: " + stats.getTotalSwitches()), lx + 8, y, 0xFFFFFFFF, true);
+        context.drawText(textRenderer, Text.literal("За сессию: " + stats.getSessionSwitches()), rx, y, 0xFFFFFFFF, true);
         y += 22;
 
         renderSectionHeader(context, lx, y, panelW, "🏆 Любимый сервер", themeRgb);
@@ -431,9 +390,9 @@ public class ConfigScreen extends Screen {
         if (fav != null) {
             context.drawText(textRenderer,
                     Text.literal(StatsData.formatKey(fav) + "  —  " + stats.getCountForKey(fav) + " раз").formatted(currentTheme.getFormatting()),
-                    lx + 8, y, themeRgb, true);
+                    lx + 8, y, 0xFF000000 | themeRgb, true);
         } else {
-            context.drawText(textRenderer, Text.literal("Пока нет данных"), lx + 8, y, 0x666666, false);
+            context.drawText(textRenderer, Text.literal("Пока нет данных"), lx + 8, y, 0xFF666666, false);
         }
         y += 22;
 
@@ -443,16 +402,17 @@ public class ConfigScreen extends Screen {
                 .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
                 .limit(5).toList();
         if (sorted.isEmpty()) {
-            context.drawText(textRenderer, Text.literal("Пока нет данных"), lx + 8, y, 0x666666, false);
+            context.drawText(textRenderer, Text.literal("Пока нет данных"), lx + 8, y, 0xFF666666, false);
             y += 14;
         } else {
             for (int i = 0; i < sorted.size(); i++) {
                 Map.Entry<String, Long> e = sorted.get(i);
-                String medal = switch (i) { case 0 -> "🥇"; case 1 -> "🥈"; case 2 -> "🥉"; default -> (i+1)+"."; };
+                String medal = switch (i) { case 0 -> "🥇"; case 1 -> "🥈"; case 2 -> "🥉"; default -> (i + 1) + "."; };
+                int color = i == 0 ? (0xFF000000 | themeRgb) : 0xFFCCCCCC;
                 context.drawText(textRenderer,
                         Text.literal(medal + " " + StatsData.formatKey(e.getKey()) + " — " + e.getValue() + " раз")
                                 .formatted(i == 0 ? currentTheme.getFormatting() : Formatting.WHITE),
-                        lx + 8, y + i * 14, i == 0 ? themeRgb : 0xCCCCCC, i == 0);
+                        lx + 8, y + i * 14, color, i == 0);
             }
             y += sorted.size() * 14 + 8;
         }
@@ -460,18 +420,17 @@ public class ConfigScreen extends Screen {
         renderSectionHeader(context, lx, y, panelW, "⏱ Время на серверах", themeRgb);
         y += 16;
         String[][] rows = { {"Lite","lite"}, {"Lite120","lite120"}, {"Classic","classic"}, {"Prime","prime"} };
-        long maxMs = 200L * 60 * 60 * 1000; // 200 часов
+        long maxMs = 200L * 60 * 60 * 1000;
         int barX = lx + 140;
         int barW = this.width - margin - barX - 4;
         for (int i = 0; i < rows.length; i++) {
             int rowY = y + i * 24;
             long ms = stats.getTimeSpentMs(rows[i][1]);
-            context.drawText(textRenderer, Text.literal(rows[i][0]), lx + 8, rowY + 4, 0xFFFFFF, false);
+            context.drawText(textRenderer, Text.literal(rows[i][0]), lx + 8, rowY + 4, 0xFFFFFFFF, false);
             context.drawText(textRenderer,
                     Text.literal(StatsData.formatTime(ms)).formatted(currentTheme.getFormatting()),
-                    lx + 68, rowY + 4, themeRgb, true);
-            float ratio = (float) ms / maxMs;
-            if (ratio > 1.0f) ratio = 1.0f;
+                    lx + 68, rowY + 4, 0xFF000000 | themeRgb, true);
+            float ratio = Math.min(1.0f, (float) ms / maxMs);
             int filled = (int)(barW * ratio);
             int bgA = (int)(backgroundAlpha * 120);
             context.fill(barX, rowY + 2, barX + barW, rowY + 12, bgA << 24 | 0x1a1f3a);
@@ -484,7 +443,8 @@ public class ConfigScreen extends Screen {
         int alpha = (int)(backgroundAlpha * 160);
         context.fill(x, y, x + width, y + 13, alpha << 24 | 0x16213e);
         context.fill(x, y, x + 3, y + 13, (int)(backgroundAlpha * 255) << 24 | themeRgb);
-        context.drawText(textRenderer, Text.literal(title).formatted(currentTheme.getFormatting()), x + 7, y + 3, themeRgb, false);
+        context.drawText(textRenderer, Text.literal(title).formatted(currentTheme.getFormatting()), x + 7, y + 3,
+                0xFF000000 | themeRgb, false);
     }
 
     private void renderGradientBackground(DrawContext context) {
@@ -500,7 +460,7 @@ public class ConfigScreen extends Screen {
         context.fill(0, panelH - 2, this.width, panelH, alpha << 24 | currentTheme.getRgbColor());
         context.drawCenteredTextWithShadow(textRenderer,
                 Text.literal("HubSwap").formatted(currentTheme.getFormatting(), Formatting.BOLD),
-                this.width / 2, 17, 0xFFFFFF);
+                this.width / 2, 17, 0xFFFFFFFF);
     }
 
     private void renderFooterPanel(DrawContext context) {
@@ -526,9 +486,7 @@ public class ConfigScreen extends Screen {
                 btn.getX() + btn.getWidth(), btn.getY() + btn.getHeight(), color);
     }
 
-    // ---- Сохранение ----
     private void onSave() {
-        // Общие настройки
         try {
             timeoutTicksTmp = Integer.parseInt(timeoutField.getText().trim());
             config.setTimeoutTicks(timeoutTicksTmp);
@@ -538,65 +496,32 @@ public class ConfigScreen extends Screen {
         config.setColorTheme(currentTheme);
         config.setLinkColor(currentLinkColor);
 
-        // Алиасы
         config.getLite().setAliases(parseAliases(liteAliasesField.getText()));
         config.getLite120().setAliases(parseAliases(lite120AliasesField.getText()));
         config.getClassic().setAliases(parseAliases(classicAliasesField.getText()));
         config.getPrime().setAliases(parseAliases(primeAliasesField.getText()));
 
-        // Диапазоны
-        // Lite total
         try {
-            int total = Integer.parseInt(liteTotalField.getText().trim());
-            config.getLite().getRanges().setTotal(total);
+            config.getLite().getRanges().setTotal(Integer.parseInt(liteTotalField.getText().trim()));
         } catch (NumberFormatException ignored) {}
 
-        // Lite диапазоны
         List<ModConfig.RangeEntry> newEntries = new ArrayList<>();
+        addRangeEntry(newEntries, "solo", "Соло", liteSoloMin, liteSoloMax);
+        addRangeEntry(newEntries, "duo", "Дуо", liteDuoMin, liteDuoMax);
+        addRangeEntry(newEntries, "trio", "Трио", liteTrioMin, liteTrioMax);
+        addRangeEntry(newEntries, "clans", "Кланы", liteClanMin, liteClanMax);
+        if (!newEntries.isEmpty()) config.getLite().getRanges().setEntries(newEntries);
+
         try {
-            int min = Integer.parseInt(liteSoloMin.getText().trim());
-            int max = Integer.parseInt(liteSoloMax.getText().trim());
-            newEntries.add(new ModConfig.RangeEntry("solo", "Соло", min, max));
+            config.getLite120().getRanges().setTotal(Integer.parseInt(lite120TotalField.getText().trim()));
         } catch (NumberFormatException ignored) {}
         try {
-            int min = Integer.parseInt(liteDuoMin.getText().trim());
-            int max = Integer.parseInt(liteDuoMax.getText().trim());
-            newEntries.add(new ModConfig.RangeEntry("duo", "Дуо", min, max));
+            config.getClassic().getRanges().setTotal(Integer.parseInt(classicTotalField.getText().trim()));
         } catch (NumberFormatException ignored) {}
         try {
-            int min = Integer.parseInt(liteTrioMin.getText().trim());
-            int max = Integer.parseInt(liteTrioMax.getText().trim());
-            newEntries.add(new ModConfig.RangeEntry("trio", "Трио", min, max));
-        } catch (NumberFormatException ignored) {}
-        try {
-            int min = Integer.parseInt(liteClanMin.getText().trim());
-            int max = Integer.parseInt(liteClanMax.getText().trim());
-            newEntries.add(new ModConfig.RangeEntry("clans", "Кланы", min, max));
+            config.getPrime().getRanges().setTotal(Integer.parseInt(primeTotalField.getText().trim()));
         } catch (NumberFormatException ignored) {}
 
-        if (!newEntries.isEmpty()) {
-            config.getLite().getRanges().setEntries(newEntries);
-        }
-
-        // Lite120 total
-        try {
-            int total = Integer.parseInt(lite120TotalField.getText().trim());
-            config.getLite120().getRanges().setTotal(total);
-        } catch (NumberFormatException ignored) {}
-
-        // Classic total
-        try {
-            int total = Integer.parseInt(classicTotalField.getText().trim());
-            config.getClassic().getRanges().setTotal(total);
-        } catch (NumberFormatException ignored) {}
-
-        // Prime total
-        try {
-            int total = Integer.parseInt(primeTotalField.getText().trim());
-            config.getPrime().getRanges().setTotal(total);
-        } catch (NumberFormatException ignored) {}
-
-        // Хоткеи
         for (int i = 0; i < 8 && i < hotkeyNumFields.size(); i++) {
             try {
                 int num = Integer.parseInt(hotkeyNumFields.get(i).getText().trim());
@@ -620,9 +545,17 @@ public class ConfigScreen extends Screen {
             client.player.sendMessage(
                     Text.literal("[HubSwap] ").formatted(currentTheme.getFormatting())
                             .append(Text.literal("✓ Настройки сохранены!").formatted(Formatting.GREEN)), false);
-            System.out.println("[HubSwap] Config saved successfully.");
         }
         close();
+    }
+
+    private void addRangeEntry(List<ModConfig.RangeEntry> entries, String key, String name,
+                               TextFieldWidget minField, TextFieldWidget maxField) {
+        try {
+            int min = Integer.parseInt(minField.getText().trim());
+            int max = Integer.parseInt(maxField.getText().trim());
+            entries.add(new ModConfig.RangeEntry(key, name, min, max));
+        } catch (NumberFormatException ignored) {}
     }
 
     private List<String> parseAliases(String text) {
@@ -633,7 +566,6 @@ public class ConfigScreen extends Screen {
                 .collect(Collectors.toList());
     }
 
-    // ---- Хелперы для хоткеев ----
     private String getModeDisplayName(String mode) {
         return switch (mode) {
             case "lite" -> "Lite";
@@ -680,12 +612,12 @@ public class ConfigScreen extends Screen {
     }
 
     private String getLinkColorName(Formatting color) {
-        if (color == Formatting.GOLD)         return "Золотой";
-        if (color == Formatting.GREEN)        return "Зелёный";
-        if (color == Formatting.YELLOW)       return "Жёлтый";
-        if (color == Formatting.AQUA)         return "Синий";
+        if (color == Formatting.GOLD) return "Золотой";
+        if (color == Formatting.GREEN) return "Зелёный";
+        if (color == Formatting.YELLOW) return "Жёлтый";
+        if (color == Formatting.AQUA) return "Синий";
         if (color == Formatting.LIGHT_PURPLE) return "Фиолетовый";
-        if (color == Formatting.RED)          return "Красный";
+        if (color == Formatting.RED) return "Красный";
         return "Золотой";
     }
 
@@ -705,8 +637,9 @@ public class ConfigScreen extends Screen {
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+    public boolean keyPressed(KeyInput input) {
         if (listeningSlot >= 0) {
+            int keyCode = input.key();
             if (keyCode == 256) {
                 hotkeyTmp.get(listeningSlot).setKeyCode(-1);
                 hotkeyKeyBtns.get(listeningSlot).setMessage(Text.literal("[ --- ]"));
@@ -717,7 +650,7 @@ public class ConfigScreen extends Screen {
             listeningSlot = -1;
             return true;
         }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.keyPressed(input);
     }
 
     @Override
@@ -725,7 +658,6 @@ public class ConfigScreen extends Screen {
         if (client != null) client.setScreen(parent);
     }
 
-    // ---- Группа виджетов ----
     private static class WidgetGroup {
         private final List<ClickableWidget> widgets;
 
@@ -734,9 +666,7 @@ public class ConfigScreen extends Screen {
         }
 
         void setVisible(boolean visible) {
-            for (ClickableWidget w : widgets) {
-                w.visible = visible;
-            }
+            for (ClickableWidget w : widgets) w.visible = visible;
         }
     }
 }
