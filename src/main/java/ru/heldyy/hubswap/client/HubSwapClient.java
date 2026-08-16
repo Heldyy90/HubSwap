@@ -14,6 +14,7 @@ import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+import net.minecraft.util.Identifier;
 import ru.heldyy.hubswap.HubSwap;
 import ru.heldyy.hubswap.config.HotkeySlot;
 import ru.heldyy.hubswap.config.ModConfig;
@@ -29,6 +30,8 @@ import java.util.Map;
 
 public class HubSwapClient implements ClientModInitializer {
     private static KeyBinding configMenuKey;
+    private static final KeyBinding.Category HUBSWAP_CATEGORY =
+            KeyBinding.Category.create(Identifier.of("hubswap", "main"));
     private static CommandDispatcher<FabricClientCommandSource> DISPATCHER;
 
     private static final Map<Integer, Boolean> hotkeyPressed = new HashMap<>();
@@ -61,7 +64,7 @@ public class HubSwapClient implements ClientModInitializer {
         configMenuKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.hubswap.config",
                 295,
-                "category.hubswap.main"
+                HUBSWAP_CATEGORY
         ));
     }
 
@@ -80,7 +83,7 @@ public class HubSwapClient implements ClientModInitializer {
         registerLiteral("ln", "lite", true);
         registerLiteral("ln120", "lite120", true);
         registerLiteral("cn", "classic", true);
-        registerLiteral("pm", "prime", true);
+        registerLiteral("pn", "prime", true);
 
         registerAliases(config.getLite().getAliases(), "lite");
         registerAliases(config.getLite120().getAliases(), "lite120");
@@ -95,7 +98,7 @@ public class HubSwapClient implements ClientModInitializer {
             String trimmed = alias.trim();
             registerLiteral(trimmed, mode, true);
             String ru = toRussianLayout(trimmed);
-            if (!ru.equals(trimmed)) {
+            if (!ru.equalsIgnoreCase(trimmed)) {
                 registerLiteral(ru, mode, true);
             }
         }
@@ -103,9 +106,7 @@ public class HubSwapClient implements ClientModInitializer {
 
     private static void registerLiteral(String literal, String mode, boolean enableTopDown) {
         if (literal == null || literal.isBlank() || DISPATCHER == null) return;
-        if (DISPATCHER.getRoot().getChild(literal) != null) {
-            return;
-        }
+        if (DISPATCHER.getRoot().getChild(literal) != null) return;
 
         var cmd = ClientCommandManager.literal(literal)
                 .then(ClientCommandManager.argument("number", IntegerArgumentType.integer(1))
@@ -142,7 +143,10 @@ public class HubSwapClient implements ClientModInitializer {
         }
 
         cmd.executes(ctx -> {
-            ctx.getSource().sendFeedback(Text.literal("Использование: /" + literal + " <номер>  или  /" + literal + " top [шаг]  или  /" + literal + " down [шаг]"));
+            ctx.getSource().sendFeedback(Text.literal(
+                    "Использование: /" + literal + " <номер>  или  /" + literal
+                            + " top [шаг]  или  /" + literal + " down [шаг]"
+            ));
             return 0;
         });
 
@@ -180,7 +184,7 @@ public class HubSwapClient implements ClientModInitializer {
                 for (HotkeySlot slot : slots) {
                     if (slot == null || !slot.isEnabled() || slot.getKeyCode() < 0) continue;
                     int code = slot.getKeyCode();
-                    boolean nowDown = InputUtil.isKeyPressed(client.getWindow().getHandle(), code);
+                    boolean nowDown = InputUtil.isKeyPressed(client.getWindow(), code);
                     boolean wasDown = hotkeyPressed.getOrDefault(code, false);
 
                     if (nowDown && !wasDown) {
