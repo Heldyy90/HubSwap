@@ -1,13 +1,13 @@
 # 📊 HubSwap — статистика релизов
 
-_Последнее обновление: **2026-08-17 12:51 UTC**_
+_Последнее обновление: **2026-08-17 18:44 UTC**_
 
 ## Общая статистика
 
 | Показатель | Значение |
 |---|---:|
-| 📥 Всего скачиваний файлов | **504** |
-| 🧩 Скачиваний `.jar` модов | **475** |
+| 📥 Всего скачиваний файлов | **516** |
+| 🧩 Скачиваний `.jar` модов | **487** |
 | 🚀 Всего релизов | **8** |
 | 📦 Всего файлов в релизах | **12** |
 
@@ -15,14 +15,14 @@ _Последнее обновление: **2026-08-17 12:51 UTC**_
 
 | Версия | Дата | `.jar` скачивания | Все скачивания | Файлов |
 |---|---:|---:|---:|---:|
-| [`v.1.0.7`](https://github.com/Heldyy90/HubSwap/releases/tag/v.1.0.7) | 2026-08-05 | 62 | 62 | 1 |
+| [`v.1.0.7`](https://github.com/Heldyy90/HubSwap/releases/tag/v.1.0.7) | 2026-08-05 | 70 | 70 | 1 |
 | [`v.1.0.6`](https://github.com/Heldyy90/HubSwap/releases/tag/v.1.0.6) | 2026-07-14 | 61 | 61 | 1 |
-| [`v.1.0.5`](https://github.com/Heldyy90/HubSwap/releases/tag/v.1.0.5) | 2026-06-21 | 38 | 38 | 1 |
+| [`v.1.0.5`](https://github.com/Heldyy90/HubSwap/releases/tag/v.1.0.5) | 2026-06-21 | 39 | 39 | 1 |
 | [`v.1.0.4`](https://github.com/Heldyy90/HubSwap/releases/tag/v.1.0.4) | 2026-05-01 | 58 | 58 | 1 |
-| [`v.1.0.3`](https://github.com/Heldyy90/HubSwap/releases/tag/v.1.0.3) | 2026-04-29 | 6 | 6 | 1 |
+| [`v.1.0.3`](https://github.com/Heldyy90/HubSwap/releases/tag/v.1.0.3) | 2026-04-29 | 7 | 7 | 1 |
 | [`v.1.0.2`](https://github.com/Heldyy90/HubSwap/releases/tag/v.1.0.2) | 2026-04-02 | 41 | 41 | 1 |
 | [`v.1.0.1`](https://github.com/Heldyy90/HubSwap/releases/tag/v.1.0.1) | 2026-03-15 | 3 | 3 | 1 |
-| [`v1.0.0`](https://github.com/Heldyy90/HubSwap/releases/tag/v1.0.0) | 2026-01-09 | 206 | 235 | 5 |
+| [`v1.0.0`](https://github.com/Heldyy90/HubSwap/releases/tag/v1.0.0) | 2026-01-09 | 208 | 237 | 5 |
 
 ## Файлы `.jar` по релизам
 
