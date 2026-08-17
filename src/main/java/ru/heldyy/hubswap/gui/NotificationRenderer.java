@@ -3,7 +3,6 @@ package ru.heldyy.hubswap.gui;
 import ru.heldyy.hubswap.HubSwap;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.Text;
 
 public class NotificationRenderer {
@@ -26,7 +25,7 @@ public class NotificationRenderer {
     }
 
     public static void register() {
-        HudRenderCallback.EVENT.register((DrawContext context, float tickDelta) -> {
+        HudRenderCallback.EVENT.register((context, tickCounter) -> {
             if (!HubSwap.getConfig().isNotificationsEnabled()) return;
             if (message == null || MinecraftClient.getInstance().world == null) return;
 
@@ -71,13 +70,13 @@ public class NotificationRenderer {
             int x = screenWidth - panelWidth - 10;
             int y = (int) (BASE_Y + anim.offsetY);
 
-            context.getMatrices().push();
+            context.getMatrices().pushMatrix();
             
             float scaleOriginX = screenWidth - 10;
             float scaleOriginY = y + panelHeight / 2.0f;
-            context.getMatrices().translate(scaleOriginX, scaleOriginY, 0);
-            context.getMatrices().scale(anim.scale, anim.scale, 1.0f);
-            context.getMatrices().translate(-scaleOriginX, -scaleOriginY, 0);
+            context.getMatrices().translate(scaleOriginX, scaleOriginY);
+            context.getMatrices().scale(anim.scale, anim.scale);
+            context.getMatrices().translate(-scaleOriginX, -scaleOriginY);
 
             int alphaInt = (int) (anim.alpha * 255.0f);
             
@@ -98,7 +97,7 @@ public class NotificationRenderer {
             int textColor = alphaInt << 24 | 0xFFFFFF;
             context.drawText(client.textRenderer, message, x + 14, y + 4, textColor, true);
 
-            context.getMatrices().pop();
+            context.getMatrices().popMatrix();
         });
     }
 

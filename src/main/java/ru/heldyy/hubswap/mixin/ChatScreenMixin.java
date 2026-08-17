@@ -8,22 +8,17 @@ import ru.heldyy.hubswap.HubSwap;
 import ru.heldyy.hubswap.config.ModConfig;
 
 import java.util.Locale;
-import java.util.regex.Pattern;
 
 @Mixin(ChatScreen.class)
 public class ChatScreenMixin {
 
-    private static final Pattern COMMAND_PATTERN = Pattern.compile(
-            "^(?<prefix>[./])\\s*(?<cmd>\\S+)\\s*(?<args>.*)"
-    );
-
     @ModifyVariable(
-            method = "sendMessage(Ljava/lang/String;Z)Z",
+            method = "sendMessage(Ljava/lang/String;Z)V",
             at = @At("HEAD"),
             argsOnly = true,
             require = 0
     )
-    private String hubswap$normalizeCommands(String chatText) {
+    private String hubswap$normalizeSlashDotCommands(String chatText) {
         return normalize(chatText, HubSwap.getConfig());
     }
 
@@ -33,77 +28,48 @@ public class ChatScreenMixin {
         char prefix = chatText.charAt(0);
         if (prefix != '.' && prefix != '/') return chatText;
 
-        // Разбираем на команду и аргументы
-        var matcher = COMMAND_PATTERN.matcher(chatText);
-        if (!matcher.matches()) return chatText;
+        int space = chatText.indexOf(' ');
+        String cmdRaw = (space == -1) ? chatText.substring(1) : chatText.substring(1, space);
+        if (cmdRaw.isEmpty()) return chatText;
+        String rest = (space == -1) ? "" : chatText.substring(space);
 
-        String cmdRaw = matcher.group("cmd");
-        String args = matcher.group("args");
-        if (cmdRaw == null || cmdRaw.isEmpty()) return chatText;
+        String cmd = cmdRaw.toLowerCase(Locale.ROOT);
 
-        // Приводим к нижнему регистру и заменяем русские буквы
-        String cmd = cmdRaw.toLowerCase(Locale.ROOT)
+        cmd = cmd
                 .replace('с', 'c')
                 .replace('т', 'n')
-                .replace('д', 'l');
+                .replace('д', 'l')
+                .replace('з', 'p');
 
-        // Карта соответствий: введённая команда -> целевая команда и режим
-        // Сначала проверяем точные совпадения с алиасами
-        String target = null;
+        String classic = safeLower(cfg.getClassicCommand());
+        String light = safeLower(cfg.getLightCommand());
+        String light120 = safeLower(cfg.getLight120Command());
+        String prime = safeLower(cfg.getPrimeCommand());
 
-        // Проверяем алиасы Lite
-        for (String alias : cfg.getLite().getAliases()) {
-            if (cmd.equals(alias.toLowerCase(Locale.ROOT))) {
-                target = "/ln " + args;
-                break;
-            }
-        }
-        // Проверяем алиасы Lite120
-        if (target == null) {
-            for (String alias : cfg.getLite120().getAliases()) {
-                if (cmd.equals(alias.toLowerCase(Locale.ROOT))) {
-                    target = "/ln120 " + args;
-                    break;
-                }
-            }
-        }
-        // Проверяем алиасы Classic
-        if (target == null) {
-            for (String alias : cfg.getClassic().getAliases()) {
-                if (cmd.equals(alias.toLowerCase(Locale.ROOT))) {
-                    target = "/cn " + args;
-                    break;
-                }
-            }
-        }
-        // Проверяем алиасы Prime
-        if (target == null) {
-            for (String alias : cfg.getPrime().getAliases()) {
-                if (cmd.equals(alias.toLowerCase(Locale.ROOT))) {
-                    target = "/pm " + args;
-                    break;
-                }
-            }
+        String mapped = null;
+
+        if (cmd.equals(classic) || cmd.equals("cn")) {
+            mapped = cfg.getClassicCommand();
         }
 
-        // Если не нашли, проверяем жёсткие команды (cn, ln, ln120, pm)
-        if (target == null) {
-            if (cmd.equals("cn")) {
-                target = "/cn " + args;
-            } else if (cmd.equals("ln")) {
-                target = "/ln " + args;
-            } else if (cmd.equals("ln120")) {
-                target = "/ln120 " + args;
-            } else if (cmd.equals("pm")) {
-                target = "/pm " + args;
-            }
+        if (mapped == null && (cmd.equals(light) || cmd.equals("ln"))) {
+            mapped = cfg.getLightCommand();
         }
 
-        // Если ничего не подошло, возвращаем исходный текст
-        if (target == null) return chatText;
+        if (mapped == null && (cmd.equals(light120) || cmd.equals("ln120"))) {
+            mapped = cfg.getLight120Command();
+        }
 
-        // Если были аргументы, но target уже содержит аргументы, убираем дублирование
-        // Но так как мы формируем "/cmd args", то всё ок
-        return target;
+        if (mapped == null && (cmd.equals(prime) || cmd.equals("pn"))) {
+            mapped = cfg.getPrimeCommand();
+        }
+
+        if (mapped == null) return chatText;
+
+        return "/" + mapped + rest;
+    }
+
+    private static String safeLower(String s) {
+        return s == null ? "" : s.toLowerCase(Locale.ROOT);
     }
 }

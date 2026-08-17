@@ -3,11 +3,12 @@ package ru.heldyy.hubswap.gui;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.input.KeyInput;
 import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+import org.lwjgl.glfw.GLFW;
 import ru.heldyy.hubswap.HubSwap;
 import ru.heldyy.hubswap.client.HubSwapClient;
 import ru.heldyy.hubswap.config.HotkeySlot;
@@ -15,44 +16,38 @@ import ru.heldyy.hubswap.config.ModConfig;
 import ru.heldyy.hubswap.config.StatsData;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 public class ConfigScreen extends Screen {
     private static final MinecraftClient client = MinecraftClient.getInstance();
     private final Screen parent;
     private final ModConfig config;
 
-    private enum Tab { GENERAL, MODES, RANGES, HOTKEYS, STATS }
-    private Tab currentTab = Tab.GENERAL;
-    private ButtonWidget tabGeneral, tabModes, tabRanges, tabHotkeys, tabStats;
+    private enum Tab { SETTINGS, HOTKEYS, STATS }
+    private Tab currentTab = Tab.SETTINGS;
+    private ButtonWidget tabSettings, tabHotkeys, tabStats;
 
-    // Общие настройки
+    private TextFieldWidget classicDelayField;
+    private TextFieldWidget clickDelayField;
+    private TextFieldWidget classicCommandField;
+    private TextFieldWidget lightCommandField;
+    private TextFieldWidget light120CommandField;
+    private TextFieldWidget primeCommandField;
+
     private boolean notificationsEnabledTmp;
+    private boolean remoteNoticesEnabledTmp;
+    private boolean smartAutoTuneEnabledTmp;
+    private ButtonWidget notificationsToggleButton;
+    private ButtonWidget remoteNoticesToggleButton;
+    private ButtonWidget smartAutoTuneToggleButton;
+
     private ModConfig.ColorTheme currentTheme;
+    private ButtonWidget themeToggleButton;
+
     private Formatting currentLinkColor;
-    private int timeoutTicksTmp;
-    private TextFieldWidget timeoutField;
+    private ButtonWidget linkColorToggleButton;
 
-    // Настройки режимов (алиасы)
-    private TextFieldWidget liteAliasesField;
-    private TextFieldWidget lite120AliasesField;
-    private TextFieldWidget classicAliasesField;
-    private TextFieldWidget primeAliasesField;
-
-    // Настройки диапазонов
-    private TextFieldWidget liteTotalField;
-    private TextFieldWidget liteSoloMin, liteSoloMax;
-    private TextFieldWidget liteDuoMin, liteDuoMax;
-    private TextFieldWidget liteTrioMin, liteTrioMax;
-    private TextFieldWidget liteClanMin, liteClanMax;
-    private TextFieldWidget lite120TotalField;
-    private TextFieldWidget classicTotalField;
-    private TextFieldWidget primeTotalField;
-
-    // Хоткеи
     private List<HotkeySlot> hotkeyTmp;
     private int listeningSlot = -1;
     private final List<ButtonWidget> hotkeyKeyBtns = new ArrayList<>();
@@ -60,22 +55,14 @@ public class ConfigScreen extends Screen {
     private final List<TextFieldWidget> hotkeyNumFields = new ArrayList<>();
     private final List<ButtonWidget> hotkeyToggleBtns = new ArrayList<>();
 
-    // Кнопки
-    private ButtonWidget notificationsToggleButton;
-    private ButtonWidget themeToggleButton;
-    private ButtonWidget linkColorToggleButton;
     private ButtonWidget saveButton;
     private ButtonWidget cancelButton;
 
-    // Анимация
     private float backgroundAlpha = 0.0f;
     private float contentOffset = 20.0f;
 
-    // Layout
+    
     private int margin, panelW, lx, rx, colW, contentY, footerY;
-
-    // Группы виджетов для управления видимостью
-    private List<WidgetGroup> groups = new ArrayList<>();
 
     public ConfigScreen(Screen parent) {
         super(Text.literal("Настройки HubSwap"));
@@ -84,7 +71,8 @@ public class ConfigScreen extends Screen {
         this.currentTheme = config.getColorTheme();
         this.currentLinkColor = config.getLinkColor();
         this.notificationsEnabledTmp = config.isNotificationsEnabled();
-        this.timeoutTicksTmp = config.getTimeoutTicks();
+        this.remoteNoticesEnabledTmp = config.isRemoteNoticesEnabled();
+        this.smartAutoTuneEnabledTmp = config.isSmartAutoTuneEnabled();
         this.hotkeyTmp = new ArrayList<>();
         for (HotkeySlot s : config.getHotkeySlots())
             hotkeyTmp.add(new HotkeySlot(s.getKeyCode(), s.getMode(), s.getServerNumber(), s.isEnabled()));
@@ -103,258 +91,21 @@ public class ConfigScreen extends Screen {
     @Override
     protected void init() {
         recalcLayout();
-        // Создаём все виджеты сразу
-        buildAllWidgets();
-        // Показываем текущую вкладку
-        showTab(Tab.GENERAL);
-    }
-
-    private void buildAllWidgets() {
-        // Создаём все виджеты без привязки к вкладкам, добавляем их в группы для управления видимостью
-        // Сначала очищаем списки
-        clearChildren();
-        hotkeyKeyBtns.clear();
-        hotkeyModeBtns.clear();
-        hotkeyNumFields.clear();
-        hotkeyToggleBtns.clear();
-        groups.clear();
-
-        // Создаём постоянные кнопки вкладок и кнопки сохранения/отмены
         buildPersistentWidgets();
-
-        // ---- Вкладка GENERAL ----
-        {
-            List<ClickableWidget> widgets = new ArrayList<>();
-            int sp = Math.min(52, (footerY - contentY) / 4);
-            int fh = 20;
-            timeoutField = addField(lx, contentY + 0, colW, fh, String.valueOf(timeoutTicksTmp), 4);
-            widgets.add(timeoutField);
-
-            notificationsToggleButton = addDrawableChild(ButtonWidget.builder(getNotificationButtonText(),
-                            btn -> { notificationsEnabledTmp = !notificationsEnabledTmp; btn.setMessage(getNotificationButtonText()); })
-                    .dimensions(rx, contentY + 0, colW, fh).build());
-            widgets.add(notificationsToggleButton);
-
-            themeToggleButton = addDrawableChild(ButtonWidget.builder(getThemeButtonText(),
-                            btn -> { currentTheme = currentTheme.next(); btn.setMessage(getThemeButtonText()); })
-                    .dimensions(rx, contentY + sp * 1, colW, fh).build());
-            widgets.add(themeToggleButton);
-
-            linkColorToggleButton = addDrawableChild(ButtonWidget.builder(getLinkColorButtonText(),
-                            btn -> { currentLinkColor = nextLinkColor(currentLinkColor); btn.setMessage(getLinkColorButtonText()); })
-                    .dimensions(rx, contentY + sp * 2, colW, fh).build());
-            widgets.add(linkColorToggleButton);
-
-            groups.add(new WidgetGroup(widgets));
-        }
-
-        // ---- Вкладка MODES (алиасы) ----
-        {
-            List<ClickableWidget> widgets = new ArrayList<>();
-            int sp = Math.min(40, (footerY - contentY) / 6);
-            int fh = 20;
-
-            // Создаём поля и подписи как виджеты
-            // Для подписей используем ButtonWidget с отключенным действием
-            ButtonWidget label1 = addStaticLabel(contentY + 0 - 22, "Lite алиасы (через запятую):", lx);
-            widgets.add(label1);
-            liteAliasesField = addField(lx, contentY + 0, panelW, fh, String.join(", ", config.getLite().getAliases()), 100);
-            widgets.add(liteAliasesField);
-
-            ButtonWidget label2 = addStaticLabel(contentY + sp * 1 + 4 - 22, "Lite120 алиасы:", lx);
-            widgets.add(label2);
-            lite120AliasesField = addField(lx, contentY + sp * 1 + 4, panelW, fh, String.join(", ", config.getLite120().getAliases()), 100);
-            widgets.add(lite120AliasesField);
-
-            ButtonWidget label3 = addStaticLabel(contentY + sp * 2 + 8 - 22, "Classic алиасы:", lx);
-            widgets.add(label3);
-            classicAliasesField = addField(lx, contentY + sp * 2 + 8, panelW, fh, String.join(", ", config.getClassic().getAliases()), 100);
-            widgets.add(classicAliasesField);
-
-            ButtonWidget label4 = addStaticLabel(contentY + sp * 3 + 12 - 22, "Prime алиасы:", lx);
-            widgets.add(label4);
-            primeAliasesField = addField(lx, contentY + sp * 3 + 12, panelW, fh, String.join(", ", config.getPrime().getAliases()), 100);
-            widgets.add(primeAliasesField);
-
-            groups.add(new WidgetGroup(widgets));
-        }
-
-        // ---- Вкладка RANGES ----
-        {
-            List<ClickableWidget> widgets = new ArrayList<>();
-            int fh = 20;
-            int y = contentY;
-            int labelX = lx;
-            int fieldX = lx + 220;
-            int fieldWidth = 60;
-            int gapBetweenMinMax = 20;
-
-            // Lite total
-            ButtonWidget labelLiteTotal = addStaticLabel(y, "Lite всего:", labelX);
-            widgets.add(labelLiteTotal);
-            liteTotalField = addField(fieldX, y, fieldWidth, fh, String.valueOf(config.getLite().getRanges().getTotal()), 3);
-            widgets.add(liteTotalField);
-            y += fh + 16;
-
-            // Заголовки колонок
-            ButtonWidget hdrRange = addStaticLabel(y, "Диапазон", labelX);
-            widgets.add(hdrRange);
-            ButtonWidget hdrMin = addStaticLabel(y, "Min", fieldX - 90);
-            widgets.add(hdrMin);
-            ButtonWidget hdrMax = addStaticLabel(y, "Max", fieldX + fieldWidth + gapBetweenMinMax - 90);
-            widgets.add(hdrMax);
-            y += 18;
-
-            // Строки Solo, Duo, Trio, Clan
-            List<ModConfig.RangeEntry> entries = config.getLite().getRanges().getEntries();
-            String[] keys = {"solo", "duo", "trio", "clans"};
-            String[] names = {"Solo", "Duo", "Trio", "Clan"};
-
-            TextFieldWidget[] minFields = new TextFieldWidget[4];
-            TextFieldWidget[] maxFields = new TextFieldWidget[4];
-
-            for (int i = 0; i < 4; i++) {
-                ModConfig.RangeEntry entry = null;
-                for (ModConfig.RangeEntry e : entries) {
-                    if (e.key.equals(keys[i])) {
-                        entry = e;
-                        break;
-                    }
-                }
-                if (entry == null) entry = new ModConfig.RangeEntry(keys[i], names[i], 1, 1);
-
-                int rowY = y + i * (fh + 4);
-
-                ButtonWidget labelName = addStaticLabel(rowY, names[i], labelX);
-                widgets.add(labelName);
-                TextFieldWidget minF = addField(fieldX, rowY, fieldWidth, fh, String.valueOf(entry.min), 3);
-                widgets.add(minF);
-                TextFieldWidget maxF = addField(fieldX + fieldWidth + gapBetweenMinMax, rowY, fieldWidth, fh, String.valueOf(entry.max), 3);
-                widgets.add(maxF);
-
-                minFields[i] = minF;
-                maxFields[i] = maxF;
-            }
-
-            liteSoloMin = minFields[0]; liteSoloMax = maxFields[0];
-            liteDuoMin  = minFields[1]; liteDuoMax  = maxFields[1];
-            liteTrioMin = minFields[2]; liteTrioMax = maxFields[2];
-            liteClanMin = minFields[3]; liteClanMax = maxFields[3];
-
-            y += 4 * (fh + 4) + 20;
-
-            // Lite120 total
-            ButtonWidget lblLite120 = addStaticLabel(y, "Lite 1.20 всего:", labelX);
-            widgets.add(lblLite120);
-            lite120TotalField = addField(fieldX, y, fieldWidth, fh, String.valueOf(config.getLite120().getRanges().getTotal()), 3);
-            widgets.add(lite120TotalField);
-            y += fh + 16;
-
-            // Classic total
-            ButtonWidget lblClassic = addStaticLabel(y, "Classic всего:", labelX);
-            widgets.add(lblClassic);
-            classicTotalField = addField(fieldX, y, fieldWidth, fh, String.valueOf(config.getClassic().getRanges().getTotal()), 3);
-            widgets.add(classicTotalField);
-            y += fh + 16;
-
-            // Prime total
-            ButtonWidget lblPrime = addStaticLabel(y, "Prime всего:", labelX);
-            widgets.add(lblPrime);
-            primeTotalField = addField(fieldX, y, fieldWidth, fh, String.valueOf(config.getPrime().getRanges().getTotal()), 3);
-            widgets.add(primeTotalField);
-            y += fh + 16;
-
-            groups.add(new WidgetGroup(widgets));
-        }
-
-        // ---- Вкладка HOTKEYS ----
-        {
-            List<ClickableWidget> widgets = new ArrayList<>();
-            int rowH   = Math.min(20, (footerY - contentY - 30) / 9);
-            int cardH  = rowH + 2;
-            int startY = contentY + 24;
-
-            int totalW = panelW;
-            int keyW  = (int)(totalW * 0.25);
-            int modeW = (int)(totalW * 0.25);
-            int numW  = (int)(totalW * 0.12);
-            int togW  = (int)(totalW * 0.13);
-            int gap   = (totalW - keyW - modeW - numW - togW) / 3;
-
-            int kx = lx;
-            int mx = kx + keyW + gap;
-            int nx = mx + modeW + gap;
-            int tx = nx + numW + gap;
-
-            for (int i = 0; i < 8; i++) {
-                HotkeySlot slot = hotkeyTmp.get(i);
-                int y = startY + cardH * i;
-                final int idx = i;
-
-                ButtonWidget keyBtn = addDrawableChild(ButtonWidget.builder(
-                                Text.literal(slot.getKeyCode() < 0 ? "[ --- ]" : "[ " + getKeyName(slot.getKeyCode()) + " ]"),
-                                btn -> { listeningSlot = idx; btn.setMessage(Text.literal("[ нажми... ]")); })
-                        .dimensions(kx, y, keyW, rowH).build());
-                widgets.add(keyBtn);
-                hotkeyKeyBtns.add(keyBtn);
-
-                ButtonWidget modeBtn = addDrawableChild(ButtonWidget.builder(
-                                Text.literal(getModeDisplayName(slot.getMode())),
-                                btn -> {
-                                    String next = nextMode(hotkeyTmp.get(idx).getMode());
-                                    hotkeyTmp.get(idx).setMode(next);
-                                    btn.setMessage(Text.literal(getModeDisplayName(next)));
-                                })
-                        .dimensions(mx, y, modeW, rowH).build());
-                widgets.add(modeBtn);
-                hotkeyModeBtns.add(modeBtn);
-
-                TextFieldWidget numField = new TextFieldWidget(textRenderer, nx, y, numW, rowH, Text.literal(""));
-                numField.setText(String.valueOf(slot.getServerNumber()));
-                numField.setMaxLength(3);
-                addDrawableChild(numField);
-                widgets.add(numField);
-                hotkeyNumFields.add(numField);
-
-                ButtonWidget toggleBtn = addDrawableChild(ButtonWidget.builder(slotToggleText(slot.isEnabled()),
-                                btn -> {
-                                    boolean cur = hotkeyTmp.get(idx).isEnabled();
-                                    hotkeyTmp.get(idx).setEnabled(!cur);
-                                    btn.setMessage(slotToggleText(!cur));
-                                })
-                        .dimensions(tx, y, togW, rowH).build());
-                widgets.add(toggleBtn);
-                hotkeyToggleBtns.add(toggleBtn);
-            }
-
-            groups.add(new WidgetGroup(widgets));
-        }
-
-        // ---- Вкладка STATS ----
-        // В stats нет виджетов, только рендер, поэтому группа пустая
-        groups.add(new WidgetGroup(new ArrayList<>()));
-
-        // По умолчанию все группы скрыты, показываем первую (GENERAL)
-        for (int i = 0; i < groups.size(); i++) {
-            groups.get(i).setVisible(i == 0);
-        }
+        rebuildTab();
     }
 
     private void buildPersistentWidgets() {
         int cx   = this.width / 2;
         int tabY = 36;
-        int tabW = Math.min(80, panelW / 5 - 4);
+        int tabW = Math.min(130, panelW / 3 - 4);
 
-        tabGeneral = addDrawableChild(ButtonWidget.builder(Text.literal("⚙ Основные"), b -> switchTab(Tab.GENERAL))
-                .dimensions(cx - tabW * 2 - 6 - 2, tabY, tabW, 18).build());
-        tabModes   = addDrawableChild(ButtonWidget.builder(Text.literal("📌 Режимы"),   b -> switchTab(Tab.MODES))
-                .dimensions(cx - tabW - 3,          tabY, tabW, 18).build());
-        tabRanges  = addDrawableChild(ButtonWidget.builder(Text.literal("📊 Диапазоны"), b -> switchTab(Tab.RANGES))
-                .dimensions(cx + 3,                  tabY, tabW, 18).build());
-        tabHotkeys = addDrawableChild(ButtonWidget.builder(Text.literal("⌨ Хоткеи"),    b -> switchTab(Tab.HOTKEYS))
-                .dimensions(cx + tabW + 6,           tabY, tabW, 18).build());
-        tabStats   = addDrawableChild(ButtonWidget.builder(Text.literal("📊 Стат"),     b -> switchTab(Tab.STATS))
-                .dimensions(cx + tabW * 2 + 9,       tabY, tabW, 18).build());
+        tabSettings = addDrawableChild(ButtonWidget.builder(Text.literal("⚙ Настройки"), b -> switchTab(Tab.SETTINGS))
+                .dimensions(cx - tabW / 2 - tabW - 4, tabY, tabW, 18).build());
+        tabHotkeys  = addDrawableChild(ButtonWidget.builder(Text.literal("⌨ Хоткеи"),    b -> switchTab(Tab.HOTKEYS))
+                .dimensions(cx - tabW / 2,             tabY, tabW, 18).build());
+        tabStats    = addDrawableChild(ButtonWidget.builder(Text.literal("📊 Статистика"), b -> switchTab(Tab.STATS))
+                .dimensions(cx + tabW / 2 + 4,         tabY, tabW, 18).build());
 
         int btnW = Math.min(150, panelW / 3);
         saveButton   = addDrawableChild(ButtonWidget.builder(Text.literal("✓ Сохранить"), btn -> onSave())
@@ -363,31 +114,144 @@ public class ConfigScreen extends Screen {
                 .dimensions(cx + 4, footerY + 10, btnW, 20).build());
     }
 
-    private ButtonWidget addStaticLabel(int y, String text, int x) {
-        ButtonWidget label = ButtonWidget.builder(Text.literal(text), b -> {})
-                .dimensions(x, y, 200, 14)
-                .build();
-        label.active = false;
-        return addDrawableChild(label);
-    }
-
-    private void showTab(Tab tab) {
-        // Скрываем все группы
-        for (WidgetGroup group : groups) {
-            group.setVisible(false);
-        }
-        // Показываем нужную
-        int idx = tab.ordinal(); // порядок: GENERAL=0, MODES=1, RANGES=2, HOTKEYS=3, STATS=4
-        if (idx >= 0 && idx < groups.size()) {
-            groups.get(idx).setVisible(true);
-        }
-        currentTab = tab;
-    }
-
     private void switchTab(Tab tab) {
-        showTab(tab);
+        currentTab = tab;
         listeningSlot = -1;
+        clearChildren();
+        hotkeyKeyBtns.clear();
+        hotkeyModeBtns.clear();
+        hotkeyNumFields.clear();
+        hotkeyToggleBtns.clear();
+        recalcLayout();
+        buildPersistentWidgets();
+        rebuildTab();
     }
+
+    private void rebuildTab() {
+        switch (currentTab) {
+            case SETTINGS -> buildSettingsTab();
+            case HOTKEYS  -> buildHotkeysTab();
+            case STATS    -> {}
+        }
+    }
+
+    
+
+    private void buildSettingsTab() {
+        int sp = Math.min(52, (footerY - contentY) / 6);
+        int fh = 20;
+
+        classicDelayField    = addField(lx, contentY + sp * 0 + 10, colW, fh, String.valueOf(config.getClassicDelay()), 4);
+        clickDelayField      = addField(lx, contentY + sp * 1 + 10, colW, fh, String.valueOf(config.getClickDelay()), 4);
+        classicCommandField  = addField(lx, contentY + sp * 2 + 10, colW, fh, config.getClassicCommand(), 10);
+        lightCommandField    = addField(lx, contentY + sp * 3 + 10, colW, fh, config.getLightCommand(), 10);
+        light120CommandField = addField(lx, contentY + sp * 4 + 10, colW, fh, config.getLight120Command(), 10);
+        primeCommandField    = addField(lx, contentY + sp * 5 + 10, colW, fh, config.getPrimeCommand(), 10);
+
+        notificationsToggleButton = addDrawableChild(ButtonWidget.builder(getNotificationButtonText(),
+                        btn -> { notificationsEnabledTmp = !notificationsEnabledTmp; btn.setMessage(getNotificationButtonText()); })
+                .dimensions(rx, contentY + sp * 0 + 10, colW, fh).build());
+        smartAutoTuneToggleButton = addDrawableChild(ButtonWidget.builder(getSmartAutoTuneButtonText(),
+                        btn -> { smartAutoTuneEnabledTmp = !smartAutoTuneEnabledTmp; btn.setMessage(getSmartAutoTuneButtonText()); })
+                .dimensions(rx, contentY + sp * 1 + 10, colW, fh).build());
+        themeToggleButton = addDrawableChild(ButtonWidget.builder(getThemeButtonText(),
+                        btn -> { currentTheme = currentTheme.next(); btn.setMessage(getThemeButtonText()); })
+                .dimensions(rx, contentY + sp * 2 + 10, colW, fh).build());
+        linkColorToggleButton = addDrawableChild(ButtonWidget.builder(getLinkColorButtonText(),
+                        btn -> { currentLinkColor = nextLinkColor(currentLinkColor); btn.setMessage(getLinkColorButtonText()); })
+                .dimensions(rx, contentY + sp * 3 + 10, colW, fh).build());
+        remoteNoticesToggleButton = addDrawableChild(ButtonWidget.builder(getRemoteNoticesButtonText(),
+                        btn -> { remoteNoticesEnabledTmp = !remoteNoticesEnabledTmp; btn.setMessage(getRemoteNoticesButtonText()); })
+                .dimensions(rx, contentY + sp * 4 + 10, colW, fh).build());
+    }
+
+    private TextFieldWidget addField(int x, int y, int w, int h, String text, int maxLen) {
+        TextFieldWidget f = new TextFieldWidget(textRenderer, x, y, w, h, Text.literal(""));
+        f.setText(text);
+        f.setMaxLength(maxLen);
+        return addDrawableChild(f);
+    }
+
+    
+
+    private void buildHotkeysTab() {
+        int rowH   = Math.min(20, (footerY - contentY - 30) / 9);
+        int cardH  = rowH + 2;
+        int startY = contentY + 24;
+
+        int totalW = panelW;
+        int keyW  = (int)(totalW * 0.30);
+        int modeW = (int)(totalW * 0.16);
+        int numW  = (int)(totalW * 0.09);
+        int togW  = (int)(totalW * 0.12);
+        int gap   = (totalW - keyW - modeW - numW - togW) / 3;
+
+        int kx = lx;
+        int mx = kx + keyW + gap;
+        int nx = mx + modeW + gap;
+        int tx = nx + numW + gap;
+
+        for (int i = 0; i < 8; i++) {
+            HotkeySlot slot = hotkeyTmp.get(i);
+            int y = startY + cardH * i;
+            final int idx = i;
+
+            ButtonWidget keyBtn = addDrawableChild(ButtonWidget.builder(
+                            Text.literal(slot.getKeyCode() < 0 ? "[ --- ]" : "[ " + getKeyName(slot.getKeyCode()) + " ]"),
+                            btn -> { listeningSlot = idx; btn.setMessage(Text.literal("[ нажми... ]")); })
+                    .dimensions(kx, y, keyW, rowH).build());
+            hotkeyKeyBtns.add(keyBtn);
+
+            ButtonWidget modeBtn = addDrawableChild(ButtonWidget.builder(
+                            Text.literal(getModeShort(slot.getMode())),
+                            btn -> {
+                                String next = nextMode(hotkeyTmp.get(idx).getMode());
+                                hotkeyTmp.get(idx).setMode(next);
+                                btn.setMessage(Text.literal(getModeShort(next)));
+                            })
+                    .dimensions(mx, y, modeW, rowH).build());
+            hotkeyModeBtns.add(modeBtn);
+
+            TextFieldWidget numField = new TextFieldWidget(textRenderer, nx, y, numW, rowH, Text.literal(""));
+            numField.setText(String.valueOf(slot.getServerNumber()));
+            numField.setMaxLength(3);
+            addDrawableChild(numField);
+            hotkeyNumFields.add(numField);
+
+            ButtonWidget toggleBtn = addDrawableChild(ButtonWidget.builder(slotToggleText(slot.isEnabled()),
+                            btn -> {
+                                boolean cur = hotkeyTmp.get(idx).isEnabled();
+                                hotkeyTmp.get(idx).setEnabled(!cur);
+                                btn.setMessage(slotToggleText(!cur));
+                            })
+                    .dimensions(tx, y, togW, rowH).build());
+            hotkeyToggleBtns.add(toggleBtn);
+        }
+    }
+
+    private Text slotToggleText(boolean on) {
+        return on ? Text.literal("✓ Вкл").formatted(Formatting.GREEN)
+                : Text.literal("✗ Выкл").formatted(Formatting.RED);
+    }
+
+    @Override
+    public boolean keyPressed(KeyInput input) {
+        int keyCode = input.key();
+        if (listeningSlot >= 0) {
+            if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+                hotkeyTmp.get(listeningSlot).setKeyCode(-1);
+                hotkeyKeyBtns.get(listeningSlot).setMessage(Text.literal("[ --- ]"));
+            } else {
+                hotkeyTmp.get(listeningSlot).setKeyCode(keyCode);
+                hotkeyKeyBtns.get(listeningSlot).setMessage(Text.literal("[ " + getKeyName(keyCode) + " ]"));
+            }
+            listeningSlot = -1;
+            return true;
+        }
+        return super.keyPressed(input);
+    }
+
+    
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
@@ -398,43 +262,124 @@ public class ConfigScreen extends Screen {
         renderHeaderPanel(context);
         renderFooterPanel(context);
 
-        context.getMatrices().push();
-        context.getMatrices().translate(0, contentOffset, 0);
+        context.getMatrices().pushMatrix();
+        context.getMatrices().translate(0, contentOffset);
 
-        // Рендерим все виджеты (они уже добавлены в children), но рисуем только видимые
-        // Для STATS рендерим дополнительно содержимое
-        if (currentTab == Tab.STATS) {
-            renderStatsTabContent(context);
+        switch (currentTab) {
+            case SETTINGS -> renderSettingsLabels(context);
+            case HOTKEYS  -> renderHotkeysLabels(context);
+            case STATS    -> renderStatsTab(context);
         }
 
         super.render(context, mouseX, mouseY, delta);
-        context.getMatrices().pop();
+        context.getMatrices().popMatrix();
 
         renderActiveTabUnderline(context);
     }
 
-    // ---- Статистика ----
-    private void renderStatsTabContent(DrawContext context) {
-        StatsData stats = HubSwap.getStats();
+    private void renderActiveTabUnderline(DrawContext context) {
+        ButtonWidget btn = switch (currentTab) {
+            case SETTINGS -> tabSettings;
+            case HOTKEYS  -> tabHotkeys;
+            case STATS    -> tabStats;
+        };
+        if (btn == null) return;
+        int alpha = (int)(backgroundAlpha * 240);
+        int color = alpha << 24 | currentTheme.getRgbColor();
+        context.fill(btn.getX(), btn.getY() + btn.getHeight() - 2,
+                btn.getX() + btn.getWidth(), btn.getY() + btn.getHeight(), color);
+    }
+
+    private void renderSettingsLabels(DrawContext context) {
+        int sp = Math.min(52, (footerY - contentY) / 6);
         int themeRgb = currentTheme.getRgbColor();
-        int y = contentY;
+
+        String[] lLabels = { "⏱ Задержка /hub (мс)", "⏱ Задержка между кликами (мс)",
+                "⌨ Команда для Classic", "⌨ Команда для Lite", "⌨ Команда для Lite 1.20", "⌨ Команда для Prime" };
+        String[] lHints  = { "Напрямую при выключенном автоподборе", "Напрямую при выключенном автоподборе",
+                "Например: cn", "Например: ln", "Например: ln120", "Например: pn" };
+        for (int i = 0; i < lLabels.length; i++)
+            renderLabel(context, lx, contentY + sp * i + 10 - 22, colW, lLabels[i], lHints[i], themeRgb);
+
+        String[] rLabels = { "🔔 Уведомления", "🧠 Умный автоподбор", "🎨 Цветовая тема", "🔗 Цвет серверов", "🌐 Удалённые объявления" };
+        String[] rHints  = { "Показывать уведомления о переходе", "Автоматически подбирает задержки",
+                "Изменяет цвет элементов интерфейса", "Цвет кликабельных серверов в чате",
+                "Проверка обновлений и объявлений через GitHub" };
+        for (int i = 0; i < rLabels.length; i++)
+            renderLabel(context, rx, contentY + sp * i + 10 - 22, colW, rLabels[i], rHints[i], themeRgb);
+    }
+
+    private void renderHotkeysLabels(DrawContext context) {
+        int rowH   = Math.min(20, (footerY - contentY - 30) / 9);
+        int cardH  = rowH + 2;
+        int startY = contentY + 24;
+        int themeRgb = currentTheme.getRgbColor();
+        int alpha    = (int)(backgroundAlpha * 255);
+
+        int totalW = panelW;
+        int keyW  = (int)(totalW * 0.30);
+        int modeW = (int)(totalW * 0.16);
+        int numW  = (int)(totalW * 0.09);
+        int togW  = (int)(totalW * 0.12);
+        int gap   = (totalW - keyW - modeW - numW - togW) / 3;
+        int kx = lx;
+        int mx = kx + keyW + gap;
+        int nx = mx + modeW + gap;
+        int tx = nx + numW + gap;
+
+        
+        int hY = contentY + 8;
+        int headerAlpha = (int)(backgroundAlpha * 180);
+        context.fill(lx - 2, hY - 3, lx + panelW + 2, hY + 13, headerAlpha << 24 | 0x1a1f3a);
+        context.fill(lx - 2, hY - 3, lx, hY + 13, alpha << 24 | themeRgb);
+        context.drawText(textRenderer, Text.literal("Клавиша").formatted(currentTheme.getFormatting()), kx + 3, hY, textArgb(themeRgb), false);
+        context.drawText(textRenderer, Text.literal("Анархия").formatted(currentTheme.getFormatting()),     mx, hY, textArgb(themeRgb), false);
+        context.drawText(textRenderer, Text.literal("№").formatted(currentTheme.getFormatting()),       nx, hY, textArgb(themeRgb), false);
+        context.drawText(textRenderer, Text.literal("Статус").formatted(currentTheme.getFormatting()),     tx, hY, textArgb(themeRgb), false);
+
+        for (int i = 0; i < 8; i++) {
+            int y = startY + cardH * i;
+            int cardAlpha = (int)(backgroundAlpha * 45);
+            int cardBg = i % 2 == 0 ? 0x16213e : 0x111830;
+            context.fill(lx - 2, y - 1, lx + panelW + 2, y + rowH, cardAlpha << 24 | cardBg);
+
+            int lineAlpha = listeningSlot == i ? alpha : (int)(backgroundAlpha * 120);
+            context.fill(lx - 2, y - 1, lx, y + rowH, lineAlpha << 24 | themeRgb);
+
+            if (listeningSlot == i) {
+                context.fill(lx, y - 1, lx + panelW + 2, y + rowH, (int)(backgroundAlpha * 35) << 24 | themeRgb);
+            }
+
+            context.drawText(textRenderer,
+                    Text.literal(String.valueOf(i + 1)).formatted(currentTheme.getFormatting()),
+                    lx - 14, y + 4, textArgb(themeRgb), false);
+        }
+
+        context.drawText(textRenderer,
+                Text.literal("Нажмите кнопку → нажмите клавишу   |   ESC = очистить"),
+                lx, startY + cardH * 8 + 2, textArgb(0x555566), false);
+    }
+
+    private void renderStatsTab(DrawContext context) {
+        StatsData stats  = HubSwap.getStats();
+        int themeRgb     = currentTheme.getRgbColor();
+        int y            = contentY;
 
         renderSectionHeader(context, lx, y, panelW, "📊 Переходы", themeRgb);
         y += 16;
-        context.drawText(textRenderer, Text.literal("Всего: " + stats.getTotalSwitches()), lx + 8, y, 0xFFFFFF, true);
-        context.drawText(textRenderer, Text.literal("За сессию: " + stats.getSessionSwitches()), rx, y, 0xFFFFFF, true);
+        context.drawText(textRenderer, Text.literal("Всего: " + stats.getTotalSwitches()), lx + 8, y, textArgb(0xFFFFFF), true);
+        context.drawText(textRenderer, Text.literal("За сессию: " + stats.getSessionSwitches()), rx, y, textArgb(0xFFFFFF), true);
         y += 22;
 
         renderSectionHeader(context, lx, y, panelW, "🏆 Любимый сервер", themeRgb);
         y += 16;
         String fav = stats.getFavoriteKey();
-        if (fav != null) {
+        if (fav != null)
             context.drawText(textRenderer,
                     Text.literal(StatsData.formatKey(fav) + "  —  " + stats.getCountForKey(fav) + " раз").formatted(currentTheme.getFormatting()),
-                    lx + 8, y, themeRgb, true);
-        } else {
-            context.drawText(textRenderer, Text.literal("Пока нет данных"), lx + 8, y, 0x666666, false);
-        }
+                    lx + 8, y, textArgb(themeRgb), true);
+        else
+            context.drawText(textRenderer, Text.literal("Пока нет данных"), lx + 8, y, textArgb(0x666666), false);
         y += 22;
 
         renderSectionHeader(context, lx, y, panelW, "📋 Топ серверов", themeRgb);
@@ -443,7 +388,7 @@ public class ConfigScreen extends Screen {
                 .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
                 .limit(5).toList();
         if (sorted.isEmpty()) {
-            context.drawText(textRenderer, Text.literal("Пока нет данных"), lx + 8, y, 0x666666, false);
+            context.drawText(textRenderer, Text.literal("Пока нет данных"), lx + 8, y, textArgb(0x666666), false);
             y += 14;
         } else {
             for (int i = 0; i < sorted.size(); i++) {
@@ -452,24 +397,25 @@ public class ConfigScreen extends Screen {
                 context.drawText(textRenderer,
                         Text.literal(medal + " " + StatsData.formatKey(e.getKey()) + " — " + e.getValue() + " раз")
                                 .formatted(i == 0 ? currentTheme.getFormatting() : Formatting.WHITE),
-                        lx + 8, y + i * 14, i == 0 ? themeRgb : 0xCCCCCC, i == 0);
+                        lx + 8, y + i * 14, textArgb(i == 0 ? themeRgb : 0xCCCCCC), i == 0);
             }
             y += sorted.size() * 14 + 8;
         }
 
         renderSectionHeader(context, lx, y, panelW, "⏱ Время на серверах", themeRgb);
         y += 16;
-        String[][] rows = { {"Lite","lite"}, {"Lite120","lite120"}, {"Classic","classic"}, {"Prime","prime"} };
-        long maxMs = 200L * 60 * 60 * 1000; // 200 часов
+        String[][] rows = { {"Classic","classic"}, {"Lite","light"}, {"Lite 1.20","light120"}, {"Prime","prime"} };
+        
+        long maxMs = 200L * 60 * 60 * 1000;
         int barX = lx + 140;
         int barW = this.width - margin - barX - 4;
         for (int i = 0; i < rows.length; i++) {
             int rowY = y + i * 24;
             long ms = stats.getTimeSpentMs(rows[i][1]);
-            context.drawText(textRenderer, Text.literal(rows[i][0]), lx + 8, rowY + 4, 0xFFFFFF, false);
+            context.drawText(textRenderer, Text.literal(rows[i][0]), lx + 8, rowY + 4, textArgb(0xFFFFFF), false);
             context.drawText(textRenderer,
                     Text.literal(StatsData.formatTime(ms)).formatted(currentTheme.getFormatting()),
-                    lx + 68, rowY + 4, themeRgb, true);
+                    lx + 68, rowY + 4, textArgb(themeRgb), true);
             float ratio = (float) ms / maxMs;
             if (ratio > 1.0f) ratio = 1.0f;
             int filled = (int)(barW * ratio);
@@ -484,7 +430,7 @@ public class ConfigScreen extends Screen {
         int alpha = (int)(backgroundAlpha * 160);
         context.fill(x, y, x + width, y + 13, alpha << 24 | 0x16213e);
         context.fill(x, y, x + 3, y + 13, (int)(backgroundAlpha * 255) << 24 | themeRgb);
-        context.drawText(textRenderer, Text.literal(title).formatted(currentTheme.getFormatting()), x + 7, y + 3, themeRgb, false);
+        context.drawText(textRenderer, Text.literal(title).formatted(currentTheme.getFormatting()), x + 7, y + 3, textArgb(themeRgb), false);
     }
 
     private void renderGradientBackground(DrawContext context) {
@@ -500,109 +446,62 @@ public class ConfigScreen extends Screen {
         context.fill(0, panelH - 2, this.width, panelH, alpha << 24 | currentTheme.getRgbColor());
         context.drawCenteredTextWithShadow(textRenderer,
                 Text.literal("HubSwap").formatted(currentTheme.getFormatting(), Formatting.BOLD),
-                this.width / 2, 17, 0xFFFFFF);
+                this.width / 2, 17, textArgb(0xFFFFFF));
     }
 
     private void renderFooterPanel(DrawContext context) {
         int alpha = (int)(backgroundAlpha * 200);
+        
         context.fill(0, footerY, this.width, footerY + 2, alpha << 24 | currentTheme.getRgbColor());
+        
         context.fill(0, footerY + 2, this.width, this.height, (int)(backgroundAlpha * 160) << 24 | 0x0a0e27);
     }
 
-    private void renderActiveTabUnderline(DrawContext context) {
-        ButtonWidget btn;
-        switch (currentTab) {
-            case GENERAL -> btn = tabGeneral;
-            case MODES -> btn = tabModes;
-            case RANGES -> btn = tabRanges;
-            case HOTKEYS -> btn = tabHotkeys;
-            case STATS -> btn = tabStats;
-            default -> btn = null;
-        }
-        if (btn == null) return;
-        int alpha = (int)(backgroundAlpha * 240);
-        int color = alpha << 24 | currentTheme.getRgbColor();
-        context.fill(btn.getX(), btn.getY() + btn.getHeight() - 2,
-                btn.getX() + btn.getWidth(), btn.getY() + btn.getHeight(), color);
+    private void renderLabel(DrawContext context, int x, int y, int width, String label, String hint, int themeRgb) {
+        int alpha = (int)(backgroundAlpha * 100);
+        context.fill(x - 2, y, x + width + 2, y + 18, alpha << 24 | 0x1a1f3a);
+        context.fill(x - 2, y, x, y + 18, (int)(backgroundAlpha * 255) << 24 | themeRgb);
+        context.drawText(textRenderer, Text.literal(label).formatted(currentTheme.getFormatting()), x + 3, y + 2, textArgb(themeRgb), false);
+        context.getMatrices().pushMatrix();
+        context.getMatrices().translate(x + 3, y + 11);
+        context.getMatrices().scale(0.7f, 0.7f);
+        context.drawText(textRenderer, hint, 0, 0, textArgb(0xCCCCCC), false);
+        context.getMatrices().popMatrix();
     }
 
-    // ---- Сохранение ----
+    
+
+
+    private int textArgb(int rgb) {
+        int alpha = Math.max(0, Math.min(255, (int) (backgroundAlpha * 255.0f)));
+        return (alpha << 24) | (rgb & 0x00FFFFFF);
+    }
+
     private void onSave() {
-        // Общие настройки
-        try {
-            timeoutTicksTmp = Integer.parseInt(timeoutField.getText().trim());
-            config.setTimeoutTicks(timeoutTicksTmp);
-        } catch (NumberFormatException ignored) {}
-
-        config.setNotificationsEnabled(notificationsEnabledTmp);
-        config.setColorTheme(currentTheme);
-        config.setLinkColor(currentLinkColor);
-
-        // Алиасы
-        config.getLite().setAliases(parseAliases(liteAliasesField.getText()));
-        config.getLite120().setAliases(parseAliases(lite120AliasesField.getText()));
-        config.getClassic().setAliases(parseAliases(classicAliasesField.getText()));
-        config.getPrime().setAliases(parseAliases(primeAliasesField.getText()));
-
-        // Диапазоны
-        // Lite total
-        try {
-            int total = Integer.parseInt(liteTotalField.getText().trim());
-            config.getLite().getRanges().setTotal(total);
-        } catch (NumberFormatException ignored) {}
-
-        // Lite диапазоны
-        List<ModConfig.RangeEntry> newEntries = new ArrayList<>();
-        try {
-            int min = Integer.parseInt(liteSoloMin.getText().trim());
-            int max = Integer.parseInt(liteSoloMax.getText().trim());
-            newEntries.add(new ModConfig.RangeEntry("solo", "Соло", min, max));
-        } catch (NumberFormatException ignored) {}
-        try {
-            int min = Integer.parseInt(liteDuoMin.getText().trim());
-            int max = Integer.parseInt(liteDuoMax.getText().trim());
-            newEntries.add(new ModConfig.RangeEntry("duo", "Дуо", min, max));
-        } catch (NumberFormatException ignored) {}
-        try {
-            int min = Integer.parseInt(liteTrioMin.getText().trim());
-            int max = Integer.parseInt(liteTrioMax.getText().trim());
-            newEntries.add(new ModConfig.RangeEntry("trio", "Трио", min, max));
-        } catch (NumberFormatException ignored) {}
-        try {
-            int min = Integer.parseInt(liteClanMin.getText().trim());
-            int max = Integer.parseInt(liteClanMax.getText().trim());
-            newEntries.add(new ModConfig.RangeEntry("clans", "Кланы", min, max));
-        } catch (NumberFormatException ignored) {}
-
-        if (!newEntries.isEmpty()) {
-            config.getLite().getRanges().setEntries(newEntries);
+        if (classicDelayField != null) {
+            try {
+                int cd = Integer.parseInt(classicDelayField.getText());
+                int ck = Integer.parseInt(clickDelayField.getText());
+                if (cd < 100 || cd > 5000) { sendError("Задержка /hub: от 100 до 5000 мс"); return; }
+                if (ck < 50  || ck > 1000) { sendError("Задержка кликов: от 50 до 1000 мс"); return; }
+                config.setDelays(cd, ck);
+                config.setCommands(classicCommandField.getText(), lightCommandField.getText(), light120CommandField.getText(), primeCommandField.getText());
+                config.setNotificationsEnabled(notificationsEnabledTmp);
+                config.setRemoteNoticesEnabled(remoteNoticesEnabledTmp);
+                config.setSmartAutoTuneEnabled(smartAutoTuneEnabledTmp);
+            } catch (NumberFormatException e) {
+                sendError("Введите числовые значения для задержек");
+                return;
+            }
         }
 
-        // Lite120 total
-        try {
-            int total = Integer.parseInt(lite120TotalField.getText().trim());
-            config.getLite120().getRanges().setTotal(total);
-        } catch (NumberFormatException ignored) {}
-
-        // Classic total
-        try {
-            int total = Integer.parseInt(classicTotalField.getText().trim());
-            config.getClassic().getRanges().setTotal(total);
-        } catch (NumberFormatException ignored) {}
-
-        // Prime total
-        try {
-            int total = Integer.parseInt(primeTotalField.getText().trim());
-            config.getPrime().getRanges().setTotal(total);
-        } catch (NumberFormatException ignored) {}
-
-        // Хоткеи
         for (int i = 0; i < 8 && i < hotkeyNumFields.size(); i++) {
             try {
                 int num = Integer.parseInt(hotkeyNumFields.get(i).getText().trim());
                 hotkeyTmp.get(i).setServerNumber(Math.max(1, num));
             } catch (NumberFormatException ignored) {}
         }
+
         List<HotkeySlot> dst = config.getHotkeySlots();
         for (int i = 0; i < 8; i++) {
             HotkeySlot s = hotkeyTmp.get(i), d = dst.get(i);
@@ -612,63 +511,103 @@ public class ConfigScreen extends Screen {
             d.setEnabled(s.isEnabled());
         }
 
+        config.setColorTheme(currentTheme);
+        config.setLinkColor(currentLinkColor);
         HubSwap.saveConfig();
-        HubSwap.reloadConfig();
         HubSwapClient.registerConfiguredCommands();
 
-        if (client != null && client.player != null) {
+        if (client != null && client.player != null)
             client.player.sendMessage(
                     Text.literal("[HubSwap] ").formatted(currentTheme.getFormatting())
                             .append(Text.literal("✓ Настройки сохранены!").formatted(Formatting.GREEN)), false);
-            System.out.println("[HubSwap] Config saved successfully.");
-        }
         close();
     }
 
-    private List<String> parseAliases(String text) {
-        if (text == null || text.isBlank()) return new ArrayList<>();
-        return Arrays.stream(text.split(","))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .collect(Collectors.toList());
+    private void sendError(String text) {
+        if (client != null && client.player != null)
+            client.player.sendMessage(
+                    Text.literal("[HubSwap] ").formatted(currentTheme.getFormatting())
+                            .append(Text.literal("Ошибка: " + text).formatted(Formatting.RED)), false);
     }
 
-    // ---- Хелперы для хоткеев ----
-    private String getModeDisplayName(String mode) {
+    
+
+    private String getModeShort(String mode) {
         return switch (mode) {
-            case "lite" -> "Lite";
-            case "lite120" -> "Lite120";
             case "classic" -> "Classic";
+            case "light120" -> "Lite 1.20";
             case "prime" -> "Prime";
-            default -> mode;
+            default -> "Lite";
         };
     }
 
     private String nextMode(String mode) {
         return switch (mode) {
-            case "lite" -> "lite120";
-            case "lite120" -> "classic";
-            case "classic" -> "prime";
-            case "prime" -> "lite";
-            default -> "lite";
+            case "classic" -> "light";
+            case "light" -> "light120";
+            case "light120" -> "prime";
+            default -> "classic";
         };
     }
 
     private String getKeyName(int keyCode) {
-        if (keyCode >= 65 && keyCode <= 90) return String.valueOf((char) keyCode);
-        if (keyCode >= 48 && keyCode <= 57) return String.valueOf((char) keyCode);
-        return "Key" + keyCode;
-    }
-
-    private Text slotToggleText(boolean on) {
-        return on ? Text.literal("✓ Вкл").formatted(Formatting.GREEN)
-                : Text.literal("✗ Выкл").formatted(Formatting.RED);
+        
+        if (keyCode >= GLFW.GLFW_KEY_A && keyCode <= GLFW.GLFW_KEY_Z) {
+            return String.valueOf((char) keyCode);
+        }
+        
+        if (keyCode >= GLFW.GLFW_KEY_0 && keyCode <= GLFW.GLFW_KEY_9) {
+            return String.valueOf((char) keyCode);
+        }
+        return switch (keyCode) {
+            case GLFW.GLFW_KEY_F1  -> "F1";  case GLFW.GLFW_KEY_F2  -> "F2";
+            case GLFW.GLFW_KEY_F3  -> "F3";  case GLFW.GLFW_KEY_F4  -> "F4";
+            case GLFW.GLFW_KEY_F5  -> "F5";  case GLFW.GLFW_KEY_F6  -> "F6";
+            case GLFW.GLFW_KEY_F7  -> "F7";  case GLFW.GLFW_KEY_F8  -> "F8";
+            case GLFW.GLFW_KEY_F9  -> "F9";  case GLFW.GLFW_KEY_F10 -> "F10";
+            case GLFW.GLFW_KEY_F11 -> "F11"; case GLFW.GLFW_KEY_F12 -> "F12";
+            case GLFW.GLFW_KEY_INSERT    -> "INS";  case GLFW.GLFW_KEY_DELETE    -> "DEL";
+            case GLFW.GLFW_KEY_HOME      -> "HOME"; case GLFW.GLFW_KEY_END       -> "END";
+            case GLFW.GLFW_KEY_PAGE_UP   -> "PGUP"; case GLFW.GLFW_KEY_PAGE_DOWN -> "PGDN";
+            case GLFW.GLFW_KEY_UP        -> "↑";    case GLFW.GLFW_KEY_DOWN      -> "↓";
+            case GLFW.GLFW_KEY_LEFT      -> "←";    case GLFW.GLFW_KEY_RIGHT     -> "→";
+            case GLFW.GLFW_KEY_SPACE     -> "SPACE";
+            case GLFW.GLFW_KEY_ENTER     -> "ENTER";
+            case GLFW.GLFW_KEY_TAB       -> "TAB";
+            case GLFW.GLFW_KEY_LEFT_SHIFT  -> "L-SHIFT"; case GLFW.GLFW_KEY_RIGHT_SHIFT -> "R-SHIFT";
+            case GLFW.GLFW_KEY_LEFT_CONTROL -> "L-CTRL"; case GLFW.GLFW_KEY_RIGHT_CONTROL -> "R-CTRL";
+            case GLFW.GLFW_KEY_LEFT_ALT    -> "L-ALT";   case GLFW.GLFW_KEY_RIGHT_ALT   -> "R-ALT";
+            case GLFW.GLFW_KEY_MINUS       -> "-";        case GLFW.GLFW_KEY_EQUAL       -> "=";
+            case GLFW.GLFW_KEY_LEFT_BRACKET -> "[";       case GLFW.GLFW_KEY_RIGHT_BRACKET -> "]";
+            case GLFW.GLFW_KEY_SEMICOLON   -> ";";        case GLFW.GLFW_KEY_APOSTROPHE  -> "'";
+            case GLFW.GLFW_KEY_COMMA       -> ",";        case GLFW.GLFW_KEY_PERIOD      -> ".";
+            case GLFW.GLFW_KEY_SLASH       -> "/";        case GLFW.GLFW_KEY_BACKSLASH   -> "\\";
+            case GLFW.GLFW_KEY_GRAVE_ACCENT -> "`";
+            case GLFW.GLFW_KEY_KP_0 -> "NUM0"; case GLFW.GLFW_KEY_KP_1 -> "NUM1";
+            case GLFW.GLFW_KEY_KP_2 -> "NUM2"; case GLFW.GLFW_KEY_KP_3 -> "NUM3";
+            case GLFW.GLFW_KEY_KP_4 -> "NUM4"; case GLFW.GLFW_KEY_KP_5 -> "NUM5";
+            case GLFW.GLFW_KEY_KP_6 -> "NUM6"; case GLFW.GLFW_KEY_KP_7 -> "NUM7";
+            case GLFW.GLFW_KEY_KP_8 -> "NUM8"; case GLFW.GLFW_KEY_KP_9 -> "NUM9";
+            default -> "Key" + keyCode;
+        };
     }
 
     private Text getNotificationButtonText() {
         return notificationsEnabledTmp
                 ? Text.literal("🔔 Уведомления: ВКЛ").formatted(Formatting.GREEN)
                 : Text.literal("🔕 Уведомления: ВЫКЛ").formatted(Formatting.RED);
+    }
+
+    private Text getRemoteNoticesButtonText() {
+        return remoteNoticesEnabledTmp
+                ? Text.literal("🌐 Объявления: ВКЛ").formatted(Formatting.GREEN)
+                : Text.literal("🌐 Объявления: ВЫКЛ").formatted(Formatting.RED);
+    }
+
+    private Text getSmartAutoTuneButtonText() {
+        return smartAutoTuneEnabledTmp
+                ? Text.literal("🧠 Умный автоподбор: ВКЛ").formatted(Formatting.GREEN)
+                : Text.literal("🧠 Умный автоподбор: ВЫКЛ").formatted(Formatting.RED);
     }
 
     private Text getThemeButtonText() {
@@ -697,46 +636,8 @@ public class ConfigScreen extends Screen {
         return Formatting.GOLD;
     }
 
-    private TextFieldWidget addField(int x, int y, int w, int h, String text, int maxLen) {
-        TextFieldWidget f = new TextFieldWidget(textRenderer, x, y, w, h, Text.literal(""));
-        f.setText(text);
-        f.setMaxLength(maxLen);
-        return addDrawableChild(f);
-    }
-
-    @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (listeningSlot >= 0) {
-            if (keyCode == 256) {
-                hotkeyTmp.get(listeningSlot).setKeyCode(-1);
-                hotkeyKeyBtns.get(listeningSlot).setMessage(Text.literal("[ --- ]"));
-            } else {
-                hotkeyTmp.get(listeningSlot).setKeyCode(keyCode);
-                hotkeyKeyBtns.get(listeningSlot).setMessage(Text.literal("[ " + getKeyName(keyCode) + " ]"));
-            }
-            listeningSlot = -1;
-            return true;
-        }
-        return super.keyPressed(keyCode, scanCode, modifiers);
-    }
-
     @Override
     public void close() {
         if (client != null) client.setScreen(parent);
-    }
-
-    // ---- Группа виджетов ----
-    private static class WidgetGroup {
-        private final List<ClickableWidget> widgets;
-
-        WidgetGroup(List<ClickableWidget> widgets) {
-            this.widgets = widgets;
-        }
-
-        void setVisible(boolean visible) {
-            for (ClickableWidget w : widgets) {
-                w.visible = visible;
-            }
-        }
     }
 }

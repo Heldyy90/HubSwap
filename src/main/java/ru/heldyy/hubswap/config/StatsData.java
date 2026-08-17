@@ -90,6 +90,7 @@ public class StatsData {
         String type = switch (parts[0]) {
             case "classic" -> "Classic";
             case "light120" -> "Lite 1.20";
+            case "prime" -> "Prime";
             default -> "Lite";
         };
         return type + " #" + parts[1];
