@@ -4,15 +4,12 @@ import com.google.gson.annotations.Expose;
 
 public class HotkeySlot {
 
-    
     @Expose
     private int keyCode = -1;
 
-    
     @Expose
     private String mode = "light";
 
-    
     @Expose
     private int serverNumber = 1;
 
@@ -38,7 +35,6 @@ public class HotkeySlot {
     public void setServerNumber(int serverNumber) { this.serverNumber = serverNumber; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    
     public String getKeyName() {
         if (keyCode < 0) return "---";
         return org.lwjgl.glfw.GLFW.glfwGetKeyName(keyCode, 0) != null
@@ -46,7 +42,6 @@ public class HotkeySlot {
                 : "Key" + keyCode;
     }
 
-    
     public String getCommandDisplay(ModConfig config) {
         String cmd = switch (mode) {
             case "classic" -> config.getClassicCommand();

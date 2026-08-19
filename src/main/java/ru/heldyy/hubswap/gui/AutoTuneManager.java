@@ -20,11 +20,6 @@ public final class AutoTuneManager {
     public static void onServerJoin() {
         connected = true;
 
-        
-        
-        
-        
-        
         if (!sessionWarmupStarted) {
             sessionWarmupStarted = true;
             lastServerJoinAt = System.currentTimeMillis();
@@ -34,9 +29,7 @@ public final class AutoTuneManager {
 
     public static void onServerDisconnect() {
         connected = false;
-        
-        
-        
+
     }
 
     public static boolean isWarmupActive() {
@@ -91,8 +84,6 @@ public final class AutoTuneManager {
 
         int hubDelay = liteMode ? 0 : 400 + safePing * 3 + jitter;
 
-        
-        
         int clickDelay = config.getAutoTunedClickDelay();
 
         if (samples < 5) {
@@ -114,15 +105,12 @@ public final class AutoTuneManager {
             clickDelay += 25;
         }
 
-        
-        
         if (isWarmupActive()) {
             clickDelay = Math.max(clickDelay, COLD_START_MIN_CLICK_DELAY);
         }
 
         if (!liteMode) {
-            
-            
+
             hubDelay += Math.min(config.getLearnedHubOffset(), 1200);
         }
 
@@ -149,9 +137,7 @@ public final class AutoTuneManager {
         }
 
         if (consumeWarmupLearningPause()) {
-            
-            
-            
+
             HubSwap.saveConfig();
             return;
         }
@@ -171,8 +157,7 @@ public final class AutoTuneManager {
         }
 
         if (consumeWarmupLearningPause()) {
-            
-            
+
             HubSwap.saveConfig();
             return;
         }

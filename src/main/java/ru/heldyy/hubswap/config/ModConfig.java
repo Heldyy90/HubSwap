@@ -31,6 +31,12 @@ public class ModConfig {
     private String hiddenRemoteNoticeFingerprint = "";
 
     @Expose
+    private AnarchyRanges anarchyRanges = new AnarchyRanges();
+
+    @Expose
+    private boolean remoteRangesEnabled = true;
+
+    @Expose
     private boolean notificationsEnabled = true;
 
     @Expose
@@ -104,6 +110,17 @@ public class ModConfig {
         return hiddenRemoteNoticeFingerprint == null ? "" : hiddenRemoteNoticeFingerprint;
     }
 
+    public AnarchyRanges getAnarchyRanges() {
+        if (anarchyRanges == null || !anarchyRanges.isValid()) {
+            anarchyRanges = new AnarchyRanges();
+        }
+        return anarchyRanges;
+    }
+
+    public boolean isRemoteRangesEnabled() {
+        return remoteRangesEnabled;
+    }
+
     public boolean isNotificationsEnabled() {
         return notificationsEnabled;
     }
@@ -172,6 +189,16 @@ public class ModConfig {
         this.hiddenRemoteNoticeFingerprint = fingerprint == null ? "" : fingerprint.trim();
     }
 
+    public void setAnarchyRanges(AnarchyRanges ranges) {
+        if (ranges != null && ranges.isValid()) {
+            this.anarchyRanges = ranges.copy();
+        }
+    }
+
+    public void setRemoteRangesEnabled(boolean enabled) {
+        this.remoteRangesEnabled = enabled;
+    }
+
     public void setNotificationsEnabled(boolean enabled) {
         this.notificationsEnabled = enabled;
     }
@@ -198,9 +225,6 @@ public class ModConfig {
         failStreak = 0;
         successStreak = Math.min(100, successStreak + 1);
 
-        
-        
-        
         if (successStreak >= 2) {
             if (learnHubOffset) {
                 learnedHubOffset = Math.max(0, learnedHubOffset - 50);
@@ -245,8 +269,6 @@ public class ModConfig {
         int clickIncrease = failStreak == 1 ? 20 : 25;
         int safetyMargin = failStreak == 1 ? 10 : 15;
 
-        
-        
         minClickDelayFloor = roundToStep(clamp(Math.max(minClickDelayFloor, currentDelay + safetyMargin), 20, 1000), 5);
 
         int targetDelay = currentDelay + clickIncrease;
@@ -262,10 +284,6 @@ public class ModConfig {
         learnedClickOffset = roundToStep(clamp(learnedClickOffset <= 0 ? 200 : learnedClickOffset, 20, 1000), 5);
         minClickDelayFloor = roundToStep(clamp(minClickDelayFloor, 20, 1000), 5);
 
-        
-        
-        
-        
         if (bestClickDelay > 0 && minClickDelayFloor > bestClickDelay + 60) {
             bestClickDelay = 0;
         }

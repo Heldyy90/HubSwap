@@ -30,9 +30,7 @@ public class HubSwap {
     private static StatsData STATS = loadStatsInternal();
 
     static {
-        
-        
-        
+
         saveConfig();
     }
 

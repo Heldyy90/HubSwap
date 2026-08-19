@@ -1,16 +1,15 @@
 {
   "enabled": true,
   "type": "update",
-  "id": "hubswap-1.0.7-mc1.21.11",
-  "revision": 4,
-  "title": "HubSwap 1.0.7 — обновление",
+  "id": "update-1.0.8",
+  "revision": 1,
+  "title": "Доступно обновление HubSwap",
   "lines": [
-    "Мод полностью переписан и адаптирован под Minecraft 1.21.11 Fabric.",
-    "Добавлен режим Prime и быстрый переход: /pn 1-9.",
-    "Добавлены кликабельные Prime-сервера.",
-    "Сохранены хоткеи, статистика и умный автоподбор задержек."
+    "Добавлена настройка диапазонов Lite-анархий: Соло, Дуо, Трио и Клан.",
+    "Диапазоны можно синхронизировать через общий anarchy_ranges.json.",
+    "Исправлены отступы во вкладке диапазонов."
   ],
-  "version": "1.0.7",
-  "downloadUrl": "https://github.com/Heldyy90/HubSwap/releases/tag/v.1.0.7",
+  "version": "1.0.8",
+  "downloadUrl": "https://github.com/Heldyy90/HubSwap/releases/latest",
   "downloadButton": true
 }

@@ -4,6 +4,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.text.Text;
 import ru.heldyy.hubswap.HubSwap;
+import ru.heldyy.hubswap.config.AnarchyRanges;
 import ru.heldyy.hubswap.config.ModConfig;
 import ru.heldyy.hubswap.gui.AutoTuneManager;
 import ru.heldyy.hubswap.gui.TransitionDetector;
@@ -61,7 +62,8 @@ public class AnarchyExecutor {
                 }
 
                 if ("light".equals(mode)) {
-                    if (anarchyNumber < 1 || anarchyNumber > 74) {
+                    AnarchyRanges ranges = config.getAnarchyRanges();
+                    if (!ranges.contains(anarchyNumber)) {
                         sendErrorMessage("Недопустимый номер анархии: " + anarchyNumber);
                         return;
                     }
@@ -84,7 +86,12 @@ public class AnarchyExecutor {
                     sendCommand("lite");
                     sleep(delays.clickDelay());
 
-                    int[] slots = getLightTargetSlots(anarchyNumber);
+                    int[] slots = getLightTargetSlots(anarchyNumber, ranges);
+                    if (slots == null) {
+                        TransitionDetector.cancelAttempt();
+                        sendErrorMessage("Номер не входит ни в один диапазон: " + anarchyNumber);
+                        return;
+                    }
 
                     TransitionDetector.markClicking();
                     clickSlot(slots[0], false);
@@ -162,7 +169,6 @@ public class AnarchyExecutor {
         });
     }
 
-
     private static boolean prepareHubTransition(TransitionMode mode, int anarchyNumber, AutoTuneManager.Delays delays) {
         boolean alreadyInHub = TransitionDetector.isInHub(client);
 
@@ -181,10 +187,8 @@ public class AnarchyExecutor {
         return alreadyInHub;
     }
 
-
     private static long getClassicHubTimeout(AutoTuneManager.Delays delays) {
-        
-        
+
         return Math.max(3500L, Math.min(6500L, delays.hubDelay() + 1500L));
     }
 
@@ -212,26 +216,15 @@ public class AnarchyExecutor {
         return slots[number - 1];
     }
 
-    private static int[] getLightTargetSlots(int number) {
-        int pageSlot;
-        int offset;
+    private static int[] getLightTargetSlots(int number, AnarchyRanges ranges) {
+        int pageSlot = ranges.getPageIndex(number);
+        int offset = ranges.getOffset(number);
 
-        if (number <= 17) {
-            pageSlot = 0;
-            offset = number - 1;
-        } else if (number <= 38) {
-            pageSlot = 1;
-            offset = number - 18;
-        } else if (number <= 57) {
-            pageSlot = 2;
-            offset = number - 39;
-        } else {
-            pageSlot = 3;
-            offset = number - 58;
+        if (pageSlot < 0 || offset < 0) {
+            return null;
         }
 
         int targetSlot = 18 + offset;
-
         return new int[]{pageSlot, targetSlot};
     }
 

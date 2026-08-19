@@ -142,8 +142,7 @@ public final class TransitionDetector {
     }
 
     private static boolean isSuccess(MinecraftClient client, TransitionAttempt attempt, boolean inHub) {
-        
-        
+
         if (!attempt.hasTargetClicked()) {
             return false;
         }
@@ -205,8 +204,6 @@ public final class TransitionDetector {
             return true;
         }
 
-        
-        
         return isInHubByTab(1500L);
     }
 

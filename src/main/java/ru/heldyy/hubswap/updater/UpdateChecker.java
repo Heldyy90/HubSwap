@@ -336,7 +336,6 @@ public final class UpdateChecker {
         });
     }
 
-
     private static void openInBrowser(URI uri) throws Exception {
         if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
             Desktop.getDesktop().browse(uri);
@@ -360,7 +359,7 @@ public final class UpdateChecker {
         connection.setRequestMethod("GET");
         connection.setConnectTimeout(4000);
         connection.setReadTimeout(4000);
-        connection.setRequestProperty("User-Agent", "HubSwap/1.0.7 (+https://github.com/Heldyy90/HubSwap)");
+        connection.setRequestProperty("User-Agent", "HubSwap/1.0.8 (+https://github.com/Heldyy90/HubSwap)");
         connection.setRequestProperty("Accept", "application/json,text/plain,*/*");
         connection.setRequestProperty("Cache-Control", "no-cache, no-store, max-age=0");
         connection.setRequestProperty("Pragma", "no-cache");

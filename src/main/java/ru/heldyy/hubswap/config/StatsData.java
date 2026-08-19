@@ -7,15 +7,12 @@ import java.util.Map;
 
 public class StatsData {
 
-    
     @Expose
     private long totalSwitches = 0;
 
-    
     @Expose
     private Map<String, Long> serverCounts = new HashMap<>();
 
-    
     @Expose
     private Map<String, Long> timeSpentMs = new HashMap<>();
 
@@ -33,14 +30,12 @@ public class StatsData {
     public long getTotalSwitches() { return totalSwitches; }
     public long getSessionSwitches() { return sessionSwitches; }
 
-    
     public void onServerChange(String newType) {
         flushCurrentServer();
         currentServerType = newType;
         serverJoinTime = newType != null ? System.currentTimeMillis() : 0;
     }
 
-    
     public void flushCurrentServer() {
         if (currentServerType != null && serverJoinTime > 0) {
             long spent = System.currentTimeMillis() - serverJoinTime;
@@ -49,12 +44,10 @@ public class StatsData {
         }
     }
 
-    
     public long getTimeSpentMs(String type) {
         return timeSpentMs.getOrDefault(type, 0L);
     }
 
-    
     public String getFavoriteKey() {
         return serverCounts.entrySet().stream()
                 .max(Map.Entry.comparingByValue())
@@ -62,17 +55,14 @@ public class StatsData {
                 .orElse(null);
     }
 
-    
     public long getCountForKey(String key) {
         return serverCounts.getOrDefault(key, 0L);
     }
 
-    
     public Map<String, Long> getServerCounts() {
         return serverCounts;
     }
 
-    
     public static String formatTime(long ms) {
         long totalSeconds = ms / 1000;
         long hours = totalSeconds / 3600;
@@ -82,7 +72,6 @@ public class StatsData {
         return "< 1м";
     }
 
-    
     public static String formatKey(String key) {
         if (key == null) return "—";
         String[] parts = key.split("_", 2);

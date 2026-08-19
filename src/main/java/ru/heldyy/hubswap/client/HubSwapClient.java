@@ -23,6 +23,7 @@ import ru.heldyy.hubswap.gui.AutoTuneManager;
 import ru.heldyy.hubswap.gui.MinecraftStatsHelper;
 import ru.heldyy.hubswap.gui.NotificationRenderer;
 import ru.heldyy.hubswap.gui.TransitionDetector;
+import ru.heldyy.hubswap.updater.AnarchyRangeUpdater;
 import ru.heldyy.hubswap.updater.UpdateChecker;
 
 import java.util.HashMap;
@@ -90,7 +91,7 @@ public class HubSwapClient implements ClientModInitializer {
     }
 
     private static void registerLightCommand(String literal) {
-        registerWithRuAlias(literal, 1, 74, anarchy -> AnarchyExecutor.executeSequence("light", anarchy));
+        registerWithRuAlias(literal, 1, 9999, anarchy -> AnarchyExecutor.executeSequence("light", anarchy));
     }
 
     private static void registerLight120Command(String literal) {
@@ -140,7 +141,7 @@ public class HubSwapClient implements ClientModInitializer {
                             int value = IntegerArgumentType.getInteger(ctx, "номер");
                             action.accept(value);
                             return 1;
-                        })));
+                       })));
     }
 
     private static String toRussianLayout(String s) {
@@ -162,6 +163,7 @@ public class HubSwapClient implements ClientModInitializer {
             MinecraftStatsHelper.onClientTick();
             TransitionDetector.onClientTick(client);
             UpdateChecker.onClientTick(client);
+            AnarchyRangeUpdater.onClientTick(client);
 
             if (configMenuKey.wasPressed()) {
                 client.setScreen(new ConfigScreen(null));
@@ -200,7 +202,6 @@ public class HubSwapClient implements ClientModInitializer {
     private void registerLifecycleEvents() {
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> HubSwap.saveStats());
 
-        
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             AutoTuneManager.onServerJoin();
             UpdateChecker.onServerJoin();
