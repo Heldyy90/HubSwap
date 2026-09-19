@@ -1,15 +1,15 @@
 {
   "enabled": true,
   "type": "update",
-  "id": "update-1.0.8",
-  "revision": 1,
+  "id": "update-1.0.9",
+  "revision": 2,
   "title": "Доступно обновление HubSwap",
   "lines": [
-    "Добавлена настройка диапазонов Lite-анархий: Соло, Дуо, Трио и Клан.",
-    "Диапазоны можно синхронизировать через общий anarchy_ranges.json.",
-    "Диапазоны автоматически проверяются примерно раз в 15 минут."
+    "Добавлены и обновлены режимы Light Anarchy 1.20, Light Anarchy 1.16, Alpha, Prime и Classic Anarchy 1.16.",
+    "Обновлены слоты переходов под новые меню серверов.",
+    "Для Alpha добавлен переход через отдельное лобби."
   ],
-  "version": "1.0.8",
+  "version": "1.0.9",
   "downloadUrl": "https://github.com/Heldyy90/HubSwap/releases/latest",
   "downloadButton": true
 }
