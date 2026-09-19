@@ -1,18 +1,18 @@
 {
   "solo": {
     "start": 1,
-    "end": 12
+    "end": 9
   },
   "duo": {
-    "start": 13,
-    "end": 26
+    "start": 10,
+    "end": 19
   },
   "trio": {
-    "start": 27,
-    "end": 39
+    "start": 20,
+    "end": 29
   },
   "clan": {
-    "start": 40,
-    "end": 51
+    "start": 30,
+    "end": 36
   }
 }
