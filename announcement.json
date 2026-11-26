@@ -2,7 +2,7 @@
   "enabled": true,
   "type": "update",
   "id": "update-1.1.0-mc1.21.11",
-  "revision": 1,
+  "revision": 2,
   "title": "Доступно обновление HubSwap",
   "lines": [
     "Обновлены переходы на Lite, Classic, Prime и Alpha.",
