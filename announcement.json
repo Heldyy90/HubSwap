@@ -1,14 +1,14 @@
 {
   "enabled": true,
-  "type": "announcement",
-  "id": "release-1.1.0-mc1.21.11",
+  "type": "update",
+  "id": "update-1.1.0-mc1.21.11",
   "revision": 1,
-  "title": "Вышел HubSwap 1.1.0",
+  "title": "Доступно обновление HubSwap 1.1.0",
   "lines": [
     "Обновлены переходы на Lite, Classic, Prime и Alpha.",
     "Добавлена версия Lite 1.21.11."
   ],
-  "version": "",
+  "version": "1.1.0",
   "downloadUrl": "https://github.com/Heldyy90/HubSwap/releases/tag/v1.1.0-mc1.21.11",
   "downloadButton": true
 }
